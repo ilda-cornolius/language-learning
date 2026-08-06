@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="vista_green">#FF6DC067</color>
+    <color name="vista_teal">#FF2ABBC4</color>
+    <color name="vista_blue">#FF1E6BA8</color>
+    <color name="vista_yellow">#FFE6D54A</color>
+    <color name="vista_accent">#FFFF6B1A</color>
+</resources>
