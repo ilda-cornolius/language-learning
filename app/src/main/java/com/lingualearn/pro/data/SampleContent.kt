@@ -102,6 +102,93 @@ object SampleContent {
         VocabWord("libro", "book", "\uD83D\uDCDA"),
     )
 
+    private val frenchVocabulary = listOf(
+        VocabWord("pomme", "apple", "\uD83C\uDF4E"),
+        VocabWord("voiture", "car", "\uD83D\uDE97"),
+        VocabWord("maison", "house", "\uD83C\uDFE0"),
+        VocabWord("chien", "dog", "\uD83D\uDC15"),
+        VocabWord("plage", "beach", "\uD83C\uDFD6\uFE0F"),
+        VocabWord("livre", "book", "\uD83D\uDCDA"),
+    )
+
+    private val japaneseVocabulary = listOf(
+        VocabWord("りんご", "apple", "\uD83C\uDF4E"),
+        VocabWord("くるま", "car", "\uD83D\uDE97"),
+        VocabWord("いえ", "house", "\uD83C\uDFE0"),
+        VocabWord("いぬ", "dog", "\uD83D\uDC15"),
+        VocabWord("うみ", "beach", "\uD83C\uDFD6\uFE0F"),
+        VocabWord("ほん", "book", "\uD83D\uDCDA"),
+    )
+
+    data class ActivityPack(
+        val vocabulary: List<VocabWord>,
+        val nativeLabel: String,
+        val listeningTitle: String,
+        val listeningDescription: String,
+        val writingPrompt: String,
+        val writingPlaceholder: String,
+        val writingSuccess: String,
+        val tutorGreeting: String,
+        val tutorPlaceholder: String,
+        val tutorReplies: List<String>,
+        val conversationNote: String,
+    )
+
+    fun activityPack(courseId: String): ActivityPack = when (courseId) {
+        "french" -> ActivityPack(
+            vocabulary = frenchVocabulary,
+            nativeLabel = "français",
+            listeningTitle = "French Café Podcast",
+            listeningDescription = "Listen to everyday conversations in French",
+            writingPrompt = "Describe your ideal vacation in French (100 words minimum)",
+            writingPlaceholder = "Écrivez ici...",
+            writingSuccess = "Très bien! Your tutor will review this entry.",
+            tutorGreeting = "Bonjour! I'm your AI French tutor. How can I help you today?",
+            tutorPlaceholder = "Ask me anything about French...",
+            tutorReplies = listOf(
+                "Bonne question! In French, 'être' is used for identity and 'avoir' often forms compound tenses.",
+                "Essayez à voix haute: \"J'ai passé le week-end avec mes amis.\"",
+                "Astuce: learn chunks like \"je voudrais\" (I would like) instead of full conjugation tables.",
+                "Très bien! Want a quick quiz on greetings and numbers?",
+            ),
+            conversationNote = "Practice these scenarios in French",
+        )
+        "japanese" -> ActivityPack(
+            vocabulary = japaneseVocabulary,
+            nativeLabel = "日本語",
+            listeningTitle = "Japanese Daily Podcast",
+            listeningDescription = "Listen to beginner-friendly Japanese clips",
+            writingPrompt = "Describe your ideal vacation in Japanese (as much as you can)",
+            writingPlaceholder = "ここに書いてください...",
+            writingSuccess = "よくできました! Your tutor will review this entry.",
+            tutorGreeting = "こんにちは! I'm your AI Japanese tutor. How can I help you today?",
+            tutorPlaceholder = "Ask me anything about Japanese...",
+            tutorReplies = listOf(
+                "いい質問です! Particles like は and が mark the topic and subject differently.",
+                "Try saying it out loud: 「友達と映画を見ました。」",
+                "Tip: learn phrases in chunks, like 「〜たいです」 (I want to ~).",
+                "よくできました! Want to practice hiragana next?",
+            ),
+            conversationNote = "Practice these scenarios in Japanese",
+        )
+        else -> ActivityPack(
+            vocabulary = vocabularyBuilder,
+            nativeLabel = "español",
+            listeningTitle = "Spanish News Podcast",
+            listeningDescription = "Listen to current events in Spanish",
+            writingPrompt = "Describe your ideal vacation in Spanish (100 words minimum)",
+            writingPlaceholder = "Escribe aquí...",
+            writingSuccess = "¡Bien hecho! Your tutor will review this entry.",
+            tutorGreeting = "¡Hola! I'm your AI Spanish tutor. How can I help you today?",
+            tutorPlaceholder = "Ask me anything about Spanish...",
+            tutorReplies = spanishTutorReplies,
+            conversationNote = "Practice these scenarios in Spanish",
+        )
+    }
+
+    fun courseById(id: String): LanguageCourse =
+        courses.firstOrNull { it.id == id } ?: courses.first()
+
     val suggestedFollows = listOf(
         SuggestedFollow("@maria_spanish", "Native Speaker"),
         SuggestedFollow("@carlos_madrid", "Language Exchange"),
@@ -149,7 +236,7 @@ object SampleContent {
     )
 
     /** Canned replies for the AI tutor so the screen is usable without a backend. */
-    val tutorReplies = listOf(
+    val spanishTutorReplies = listOf(
         "¡Buena pregunta! In Spanish, 'ser' describes permanent traits and 'estar' describes states or locations.",
         "Try saying it out loud: \"Fui al cine con mis amigos.\" The preterite 'fui' works for both 'ir' and 'ser'.",
         "Un consejo: learn verbs in chunks, like 'me gustaría' (I would like), instead of memorising full tables.",

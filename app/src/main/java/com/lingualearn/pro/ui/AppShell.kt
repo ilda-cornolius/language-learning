@@ -49,6 +49,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.lingualearn.pro.data.LanguageCourse
 import com.lingualearn.pro.data.SampleContent
 import com.lingualearn.pro.ui.components.AeroBackground
 import com.lingualearn.pro.ui.components.Badge
@@ -84,8 +85,17 @@ import kotlinx.coroutines.launch
 @Composable
 fun LinguaLearnApp() {
     var current by remember { mutableStateOf(Destination.Lesson) }
+    var activeLanguageId by remember { mutableStateOf("spanish") }
+    val activeCourse = SampleContent.courseById(activeLanguageId)
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
+
+    fun navigate(destination: Destination) {
+        Destination.courseIdFor(destination)?.let { activeLanguageId = it }
+        current = destination
+    }
+
+    val screenTitle = Destination.titleFor(current, activeCourse.name)
 
     AeroBackground {
         BoxWithConstraints(Modifier.fillMaxSize()) {
@@ -96,7 +106,7 @@ fun LinguaLearnApp() {
             if (expanded) {
                 Column(Modifier.safeDrawingPadding()) {
                     TitleBar(
-                        title = current.title,
+                        title = screenTitle,
                         onMenuClick = null,
                         showLessonActions = current == Destination.Lesson,
                         onLessonSettings = { current = Destination.Preferences },
@@ -104,17 +114,19 @@ fun LinguaLearnApp() {
                     Row(Modifier.weight(1f)) {
                         Sidebar(
                             current = current,
-                            onSelect = { current = it },
+                            activeLanguageId = activeLanguageId,
+                            onSelect = { navigate(it) },
                             modifier = Modifier
                                 .width(250.dp)
                                 .fillMaxHeight()
                                 .background(Color(0x1A000000)),
                         )
                         Column(Modifier.weight(1f)) {
-                            LanguageToolbar(current) { current = it }
+                            LanguageToolbar(current) { navigate(it) }
                             ContentArea(
                                 current = current,
-                                onNavigate = { current = it },
+                                activeCourse = activeCourse,
+                                onNavigate = { navigate(it) },
                                 showWidgets = false,
                                 modifier = Modifier.weight(1f),
                             )
@@ -140,8 +152,9 @@ fun LinguaLearnApp() {
                         ) {
                             Sidebar(
                                 current = current,
+                                activeLanguageId = activeLanguageId,
                                 onSelect = {
-                                    current = it
+                                    navigate(it)
                                     scope.launch { drawerState.close() }
                                 },
                                 modifier = Modifier
@@ -153,15 +166,16 @@ fun LinguaLearnApp() {
                 ) {
                     Column(Modifier.safeDrawingPadding()) {
                         TitleBar(
-                            title = current.title,
+                            title = screenTitle,
                             onMenuClick = { scope.launch { drawerState.open() } },
                             showLessonActions = current == Destination.Lesson,
                             onLessonSettings = { current = Destination.Preferences },
                         )
-                        LanguageToolbar(current) { current = it }
+                        LanguageToolbar(current) { navigate(it) }
                         ContentArea(
                             current = current,
-                            onNavigate = { current = it },
+                            activeCourse = activeCourse,
+                            onNavigate = { navigate(it) },
                             showWidgets = true,
                             modifier = Modifier.weight(1f),
                         )
@@ -245,6 +259,7 @@ private fun TitleBar(
 @Composable
 private fun Sidebar(
     current: Destination,
+    activeLanguageId: String,
     onSelect: (Destination) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -279,7 +294,7 @@ private fun Sidebar(
                 val destination = Destination.forCourse(course.id)
                 SidebarRow(
                     label = course.name,
-                    selected = current == destination,
+                    selected = course.id == activeLanguageId,
                     onClick = { onSelect(destination) },
                     leading = { Text(course.flag, style = MaterialTheme.typography.bodyMedium) },
                     trailing = {
@@ -290,7 +305,7 @@ private fun Sidebar(
         }
 
         SidebarGroup("Activities", Destination.activities, current, onSelect)
-        SidebarGroup("Social Learning", Destination.social, current, onSelect)
+        SidebarGroup("Social Learning", Destination.social, onSelect = onSelect, current = current)
         SidebarGroup("Settings", Destination.settings, current, onSelect)
     }
 }
@@ -440,6 +455,7 @@ private fun StatChip(icon: androidx.compose.ui.graphics.vector.ImageVector, labe
 @Composable
 private fun ContentArea(
     current: Destination,
+    activeCourse: LanguageCourse,
     onNavigate: (Destination) -> Unit,
     showWidgets: Boolean,
     modifier: Modifier = Modifier,
@@ -454,14 +470,13 @@ private fun ContentArea(
         when (current) {
             Destination.Lesson -> LessonScreen(onCheck = { onNavigate(Destination.Practice) })
             Destination.Spanish, Destination.French, Destination.Japanese -> {
-                val course = SampleContent.courses.first { Destination.forCourse(it.id) == current }
-                CourseDashboardScreen(course)
+                CourseDashboardScreen(activeCourse)
             }
-            Destination.Vocabulary -> VocabularyScreen()
-            Destination.Conversation -> ConversationScreen()
-            Destination.Listening -> ListeningScreen()
-            Destination.Writing -> WritingScreen()
-            Destination.Assistant -> AssistantScreen()
+            Destination.Vocabulary -> VocabularyScreen(activeCourse)
+            Destination.Conversation -> ConversationScreen(activeCourse)
+            Destination.Listening -> ListeningScreen(activeCourse)
+            Destination.Writing -> WritingScreen(activeCourse)
+            Destination.Assistant -> AssistantScreen(activeCourse)
             Destination.Instagram -> InstagramScreen()
             Destination.Google -> GoogleToolsScreen()
             Destination.Profile -> ProfileScreen()
@@ -477,14 +492,28 @@ private fun ContentArea(
                 current == Destination.Japanese
             val hideCalendarClock = current == Destination.Practice ||
                 current == Destination.Challenges ||
-                current == Destination.DailyLesson
+                current == Destination.DailyLesson ||
+                current == Destination.Assistant ||
+                current == Destination.Lesson ||
+                current == Destination.Listening ||
+                current == Destination.Writing ||
+                current == Destination.Preferences ||
+                isCourseDashboard
+            val hideDailyProgress = current == Destination.Practice ||
+                current == Destination.Challenges ||
+                current == Destination.DailyLesson ||
+                current == Destination.Assistant ||
+                current == Destination.Listening ||
+                current == Destination.Writing ||
+                current == Destination.Preferences ||
+                isCourseDashboard
             if (!hideCalendarClock) {
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     CalendarWidget(Modifier.weight(1f))
                     ClockWidget(Modifier.weight(1f))
                 }
             }
-            if (!hideCalendarClock && !isCourseDashboard) {
+            if (!hideDailyProgress) {
                 DailyProgressWidget()
             }
             if (current != Destination.Challenges) {
@@ -501,14 +530,28 @@ private fun WidgetsPanel(current: Destination, modifier: Modifier = Modifier) {
         current == Destination.Japanese
     val hideCalendarClock = current == Destination.Practice ||
         current == Destination.Challenges ||
-        current == Destination.DailyLesson
+        current == Destination.DailyLesson ||
+        current == Destination.Assistant ||
+        current == Destination.Lesson ||
+        current == Destination.Listening ||
+        current == Destination.Writing ||
+        current == Destination.Preferences ||
+        isCourseDashboard
+    val hideDailyProgress = current == Destination.Practice ||
+        current == Destination.Challenges ||
+        current == Destination.DailyLesson ||
+        current == Destination.Assistant ||
+        current == Destination.Listening ||
+        current == Destination.Writing ||
+        current == Destination.Preferences ||
+        isCourseDashboard
     Column(modifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
         if (!hideCalendarClock) {
             CalendarWidget()
             ClockWidget()
-            if (!isCourseDashboard) {
-                DailyProgressWidget()
-            }
+        }
+        if (!hideDailyProgress) {
+            DailyProgressWidget()
         }
         if (current != Destination.Challenges) {
             DestinationWidget()

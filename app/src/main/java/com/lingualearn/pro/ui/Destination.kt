@@ -49,5 +49,25 @@ enum class Destination(
             "japanese" -> Japanese
             else -> Spanish
         }
+
+        fun courseIdFor(destination: Destination): String? = when (destination) {
+            Spanish -> "spanish"
+            French -> "french"
+            Japanese -> "japanese"
+            else -> null
+        }
+
+        fun titleFor(destination: Destination, languageName: String): String = when (destination) {
+            Vocabulary -> "$languageName Vocabulary Builder"
+            Conversation -> "$languageName Conversation Practice"
+            Listening -> "$languageName Listening Exercises"
+            Writing -> "$languageName Writing Practice"
+            Assistant -> "$languageName AI Tutor"
+            DailyLesson -> "Today's $languageName Lesson"
+            Practice -> "$languageName Practice Exercises"
+            Challenges -> "$languageName Weekly Challenges"
+            Lesson -> "$languageName Lesson 12: Everyday Conversations"
+            else -> destination.title
+        }
     }
 }

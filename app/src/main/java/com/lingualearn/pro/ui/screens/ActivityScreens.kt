@@ -29,6 +29,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
@@ -43,6 +44,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.lingualearn.pro.data.LanguageCourse
 import com.lingualearn.pro.data.SampleContent
 import com.lingualearn.pro.ui.components.AeroButton
 import com.lingualearn.pro.ui.components.AeroProgressBar
@@ -59,13 +61,14 @@ import com.lingualearn.pro.ui.theme.VistaGreen
 import com.lingualearn.pro.ui.theme.VistaTeal
 
 @Composable
-fun VocabularyScreen() {
-    var revealed by remember { mutableStateOf(setOf<String>()) }
+fun VocabularyScreen(course: LanguageCourse) {
+    val pack = SampleContent.activityPack(course.id)
+    var revealed by remember(course.id) { mutableStateOf(setOf<String>()) }
 
     GlassCard(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            BodyText("Tap a card to flip between Spanish and English.")
-            SampleContent.vocabularyBuilder.chunked(2).forEach { row ->
+            BodyText("Tap a card to flip between ${course.name} and English.")
+            pack.vocabulary.chunked(2).forEach { row ->
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     row.forEach { word ->
                         val isRevealed = word.term in revealed
@@ -85,13 +88,13 @@ fun VocabularyScreen() {
                                 Text(word.emoji ?: "", style = MaterialTheme.typography.headlineSmall)
                                 Text(
                                     text = if (isRevealed) word.meaning else word.term,
-                                    color = if (isRevealed) TextPrimary else VistaAccent,
+                                    color = if (isRevealed) TextPrimary else course.accent,
                                     fontWeight = FontWeight.Medium,
                                     textAlign = TextAlign.Center,
                                     style = MaterialTheme.typography.bodyMedium,
                                 )
                                 Text(
-                                    text = if (isRevealed) "english" else "español",
+                                    text = if (isRevealed) "english" else pack.nativeLabel,
                                     color = TextMuted,
                                     style = MaterialTheme.typography.bodySmall,
                                 )
@@ -106,21 +109,23 @@ fun VocabularyScreen() {
 }
 
 @Composable
-fun ConversationScreen() {
+fun ConversationScreen(course: LanguageCourse) {
+    val pack = SampleContent.activityPack(course.id)
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        BodyText("${course.flag}  ${pack.conversationNote}")
         ScenarioCard(
             title = "Restaurant Conversation",
-            description = "Practice ordering food and drinks",
+            description = "Practice ordering food and drinks in ${course.name}",
             tint = VistaGreen,
         )
         ScenarioCard(
             title = "Travel Scenarios",
-            description = "Airport, hotel, and transportation",
+            description = "Airport, hotel, and transportation in ${course.name}",
             tint = VistaBlue,
         )
         ScenarioCard(
             title = "Small Talk",
-            description = "Weather, weekends, and introductions",
+            description = "Weather, weekends, and introductions in ${course.name}",
             tint = VistaTeal,
         )
     }
@@ -137,8 +142,9 @@ private fun ScenarioCard(title: String, description: String, tint: Color) {
 }
 
 @Composable
-fun ListeningScreen() {
-    var playing by remember { mutableStateOf(false) }
+fun ListeningScreen(course: LanguageCourse) {
+    val pack = SampleContent.activityPack(course.id)
+    var playing by remember(course.id) { mutableStateOf(false) }
     val transition = rememberInfiniteTransition(label = "pulse")
     val pulse by transition.animateFloat(
         initialValue = 1f,
@@ -159,7 +165,7 @@ fun ListeningScreen() {
                 Modifier
                     .size(128.dp)
                     .scale(pulse)
-                    .background(VistaTeal.copy(alpha = 0.3f), CircleShape),
+                    .background(course.accent.copy(alpha = 0.3f), CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
@@ -169,11 +175,12 @@ fun ListeningScreen() {
                     modifier = Modifier.size(52.dp),
                 )
             }
-            CardTitle("Spanish News Podcast")
-            BodyText("Listen to current events in Spanish")
-            AeroProgressBar(progress = if (playing) 0.35f else 0f, color = VistaTeal)
+            CardTitle(pack.listeningTitle)
+            BodyText(pack.listeningDescription)
+            AeroProgressBar(progress = if (playing) 0.35f else 0f, color = course.accent)
             AeroButton(
                 text = if (playing) "Pause Listening" else "Start Listening",
+                color = course.accent,
                 onClick = { playing = !playing },
             )
         }
@@ -181,22 +188,23 @@ fun ListeningScreen() {
 }
 
 @Composable
-fun WritingScreen() {
-    var text by rememberSaveable { mutableStateOf("") }
-    var submitted by remember { mutableStateOf(false) }
+fun WritingScreen(course: LanguageCourse) {
+    val pack = SampleContent.activityPack(course.id)
+    var text by rememberSaveable(course.id) { mutableStateOf("") }
+    var submitted by remember(course.id) { mutableStateOf(false) }
     val words = text.split(Regex("\\s+")).count { it.isNotBlank() }
 
     GlassCard(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             CardTitle("Today's Writing Prompt")
-            BodyText("Describe your ideal vacation in Spanish (100 words minimum)")
+            BodyText(pack.writingPrompt)
             GlassTextField(
                 value = text,
                 onValueChange = {
                     text = it
                     submitted = false
                 },
-                placeholder = "Escribe aquí...",
+                placeholder = pack.writingPlaceholder,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(180.dp),
@@ -214,26 +222,27 @@ fun WritingScreen() {
                 )
                 AeroButton(
                     text = if (submitted) "Submitted" else "Submit",
-                    color = if (submitted) VistaGreen else VistaAccent,
+                    color = if (submitted) VistaGreen else course.accent,
                     onClick = { if (text.isNotBlank()) submitted = true },
                 )
             }
             if (submitted) {
-                BodyText("¡Bien hecho! Your tutor will review this entry.", color = VistaGreen)
+                BodyText(pack.writingSuccess, color = VistaGreen)
             }
         }
     }
 }
 
 @Composable
-fun AssistantScreen() {
-    val messages = remember {
-        mutableStateListOf(
-            ChatMessage("¡Hola! I'm your AI Spanish tutor. How can I help you today?", fromUser = false)
-        )
+fun AssistantScreen(course: LanguageCourse) {
+    val pack = SampleContent.activityPack(course.id)
+    val messages = remember { mutableStateListOf<ChatMessage>() }
+    LaunchedEffect(course.id) {
+        messages.clear()
+        messages.add(ChatMessage(pack.tutorGreeting, fromUser = false))
     }
-    var draft by rememberSaveable { mutableStateOf("") }
-    var replyIndex by remember { mutableIntStateOf(0) }
+    var draft by rememberSaveable(course.id) { mutableStateOf("") }
+    var replyIndex by remember(course.id) { mutableIntStateOf(0) }
     val scrollState = rememberScrollState()
 
     GlassCard(Modifier.fillMaxWidth()) {
@@ -255,7 +264,7 @@ fun AssistantScreen() {
                             horizontalArrangement = if (message.fromUser) Arrangement.End else Arrangement.Start,
                         ) {
                             GlassTile(
-                                color = if (message.fromUser) VistaAccent.copy(alpha = 0.35f)
+                                color = if (message.fromUser) course.accent.copy(alpha = 0.35f)
                                 else VistaTeal.copy(alpha = 0.3f),
                                 shape = RoundedCornerShape(12.dp),
                             ) {
@@ -275,18 +284,19 @@ fun AssistantScreen() {
                 GlassTextField(
                     value = draft,
                     onValueChange = { draft = it },
-                    placeholder = "Ask me anything about Spanish...",
+                    placeholder = pack.tutorPlaceholder,
                     modifier = Modifier.weight(1f),
                 )
                 Spacer(Modifier.size(8.dp))
                 AeroButton(
                     text = "Send",
+                    color = course.accent,
                     onClick = {
                         if (draft.isNotBlank()) {
                             messages.add(ChatMessage(draft, fromUser = true))
                             messages.add(
                                 ChatMessage(
-                                    SampleContent.tutorReplies[replyIndex % SampleContent.tutorReplies.size],
+                                    pack.tutorReplies[replyIndex % pack.tutorReplies.size],
                                     fromUser = false,
                                 )
                             )

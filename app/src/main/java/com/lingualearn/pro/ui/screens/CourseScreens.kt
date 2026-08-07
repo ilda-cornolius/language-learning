@@ -16,11 +16,17 @@ import com.lingualearn.pro.ui.components.BodyText
 import com.lingualearn.pro.ui.components.BulletList
 import com.lingualearn.pro.ui.components.CardTitle
 import com.lingualearn.pro.ui.components.GlassCard
+import com.lingualearn.pro.ui.widgets.CalendarWidget
+import com.lingualearn.pro.ui.widgets.ClockWidget
 import com.lingualearn.pro.ui.widgets.DailyProgressWidget
 
 @Composable
 fun CourseDashboardScreen(course: LanguageCourse) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            CalendarWidget(Modifier.weight(1f))
+            ClockWidget(Modifier.weight(1f))
+        }
         DailyProgressWidget()
 
         GlassCard(Modifier.fillMaxWidth()) {

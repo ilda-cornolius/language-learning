@@ -29,10 +29,12 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.SubcomposeAsyncImage
+import coil.request.ImageRequest
 import com.lingualearn.pro.data.PhotoOfTheDay
 import com.lingualearn.pro.data.PhotoOfTheDayRepository
 import com.lingualearn.pro.ui.components.AeroProgressBar
@@ -93,17 +95,19 @@ fun CalendarWidget(modifier: Modifier = Modifier) {
 
 @Composable
 fun DailyProgressWidget(modifier: Modifier = Modifier) {
-    Column(
-        modifier.fillMaxWidth().padding(horizontal = 2.dp, vertical = 4.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        Text(
-            text = "Daily Progress",
-            style = MaterialTheme.typography.titleMedium,
-            color = TextPrimary,
-        )
-        ProgressRow("XP", "65/100", 0.65f, VistaGreen)
-        ProgressRow("Lessons", "2/3", 0.66f, VistaBlue)
+    GlassCard(modifier.fillMaxWidth()) {
+        Column(
+            Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Text(
+                text = "Daily Progress",
+                style = MaterialTheme.typography.titleMedium,
+                color = TextPrimary,
+            )
+            ProgressRow("XP", "65/100", 0.65f, VistaGreen)
+            ProgressRow("Lessons", "2/3", 0.66f, VistaBlue)
+        }
     }
 }
 
@@ -169,9 +173,10 @@ fun ClockWidget(modifier: Modifier = Modifier) {
 
 @Composable
 fun DestinationWidget(modifier: Modifier = Modifier) {
-    var photo by remember { mutableStateOf<PhotoOfTheDay?>(null) }
+    val context = LocalContext.current
+    var photo by remember { mutableStateOf(PhotoOfTheDayRepository.fallback()) }
     LaunchedEffect(Unit) {
-        photo = PhotoOfTheDayRepository.load()
+        photo = PhotoOfTheDayRepository.load(context)
     }
 
     GlassCard(modifier.fillMaxWidth()) {
@@ -184,46 +189,38 @@ fun DestinationWidget(modifier: Modifier = Modifier) {
                 contentAlignment = Alignment.Center,
             ) {
                 val current = photo
-                if (current == null) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(28.dp),
-                        color = Color.White,
-                        strokeWidth = 2.dp,
-                    )
-                } else {
-                    SubcomposeAsyncImage(
-                        model = current.imageUrl,
-                        contentDescription = current.caption,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize(),
-                        loading = {
-                            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(28.dp),
-                                    color = Color.White,
-                                    strokeWidth = 2.dp,
-                                )
-                            }
-                        },
-                        error = {
-                            Box(
-                                Modifier
-                                    .fillMaxSize()
-                                    .background(
-                                        Brush.linearGradient(
-                                            listOf(Color(0xFFF59E0B), Color(0xFFEF4444), Color(0xFF7C3AED))
-                                        )
-                                    ),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                Text("\uD83C\uDFDB\uFE0F", style = MaterialTheme.typography.headlineSmall)
-                            }
-                        },
-                    )
+                val request = remember(current.model) {
+                    ImageRequest.Builder(context)
+                        .data(current.model)
+                        .crossfade(true)
+                        .build()
                 }
+                SubcomposeAsyncImage(
+                    model = request,
+                    contentDescription = current.caption,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                    loading = {
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(28.dp),
+                                color = Color.White,
+                                strokeWidth = 2.dp,
+                            )
+                        }
+                    },
+                    error = {
+                        SubcomposeAsyncImage(
+                            model = "file:///android_asset/photo_of_the_day_fallback.jpg",
+                            contentDescription = current.caption,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    },
+                )
             }
             Text(
-                text = photo?.caption ?: "Loading photo of the day…",
+                text = photo.caption,
                 style = MaterialTheme.typography.bodySmall,
                 color = TextSecondary,
                 maxLines = 2,
