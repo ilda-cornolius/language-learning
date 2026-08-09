@@ -157,7 +157,6 @@ fun LessonScreen(onCheck: () -> Unit) {
         }
     }
 }
-
 @Composable
 private fun DialogueRow(line: DialogueLine) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
@@ -193,7 +192,6 @@ private fun DialogueRow(line: DialogueLine) {
         }
     }
 }
-
 @Composable
 private fun AnswerRow(value: String, onValueChange: (String) -> Unit, hint: String) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
@@ -244,7 +242,6 @@ private fun AnswerRow(value: String, onValueChange: (String) -> Unit, hint: Stri
         }
     }
 }
-
 /** Chat-style bubble sitting next to the speaker avatar. */
 @Composable
 private fun SpeechBubble(
@@ -273,7 +270,6 @@ private fun SpeechBubble(
         }
     }
 }
-
 @Composable
 fun SpeakerButton(onClick: () -> Unit = {}) {
     IconButton(onClick = onClick, modifier = Modifier.size(24.dp)) {
@@ -355,50 +351,6 @@ private fun PracticeCard(title: String, description: String, buttonText: String,
                 color = buttonColor,
                 onClick = { started = true },
             )
-        }
-    }
-}
-
-@Composable
-fun ChallengesScreen() {
-    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        SampleContent.challenges.forEach { challenge ->
-            var accepted by remember { mutableStateOf(false) }
-            GlassCard(Modifier.fillMaxWidth()) {
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(20.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        CardTitle(challenge.title)
-                        BodyText(challenge.description)
-                    }
-                    Column(
-                        horizontalAlignment = Alignment.End,
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        Text(
-                            text = challenge.reward,
-                            color = VistaAccent,
-                            fontWeight = FontWeight.Bold,
-                            style = MaterialTheme.typography.titleMedium,
-                        )
-                        if (challenge.actionable) {
-                            AeroButton(
-                                text = if (accepted) "Accepted" else "Accept",
-                                color = if (accepted) VistaGreen else VistaAccent,
-                                onClick = { accepted = true },
-                            )
-                        }
-                        challenge.progressLabel?.let {
-                            Text(it, style = MaterialTheme.typography.bodySmall, color = TextMuted)
-                        }
-                    }
-                }
-            }
         }
     }
 }

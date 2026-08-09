@@ -118,7 +118,7 @@ fun GrammarLessonScreen(course: LanguageCourse, onComplete: () -> Unit) {
             }
         }
     }
-    QuizCard(course, lesson.questions, "Lesson complete", onComplete)
+    QuizCard(course, lesson.questions, "Lesson complete") { _, _ -> onComplete() }
 }
 
 @Composable
@@ -148,7 +148,7 @@ private fun PracticeEntry(title: String, subtitle: String, button: String, color
 }
 
 @Composable
-fun QuickReviewScreen(course: LanguageCourse, onBack: () -> Unit) {
+fun QuickReviewScreen(course: LanguageCourse, onBack: () -> Unit, onComplete: (Int, Int) -> Unit) {
     val context = LocalContext.current
     val base = SampleContent.practicePack(course.id).reviewWords
     var saved by remember(course.id) { mutableStateOf<List<SavedWord>>(emptyList()) }
@@ -195,7 +195,10 @@ fun QuickReviewScreen(course: LanguageCourse, onBack: () -> Unit) {
                                 checked = true
                                 if (selected == word.term) score++
                             }
-                            checked && index == words.lastIndex -> finished = true
+                            checked && index == words.lastIndex -> {
+                                finished = true
+                                onComplete(score, words.size)
+                            }
                             checked -> {
                                 index++
                                 selected = null
@@ -210,9 +213,15 @@ fun QuickReviewScreen(course: LanguageCourse, onBack: () -> Unit) {
 }
 
 @Composable
-fun GrammarDrillsScreen(course: LanguageCourse, onBack: () -> Unit) {
+fun GrammarDrillsScreen(
+    course: LanguageCourse,
+    onBack: () -> Unit,
+    onComplete: (Int, Int) -> Unit,
+) {
     ExerciseHeader("Grammar Drills", "Focus on verb conjugations and sentence structure", onBack)
-    QuizCard(course, SampleContent.practicePack(course.id).grammarQuestions, "Drills complete", onBack)
+    QuizCard(course, SampleContent.practicePack(course.id).grammarQuestions, "Drills complete") { score, total ->
+        onComplete(score, total)
+    }
 }
 
 @Composable
@@ -220,7 +229,7 @@ private fun QuizCard(
     course: LanguageCourse,
     questions: List<ExerciseQuestion>,
     resultTitle: String,
-    onComplete: () -> Unit,
+    onComplete: (Int, Int) -> Unit,
 ) {
     var index by rememberSaveable(course.id, resultTitle) { mutableStateOf(0) }
     var selected by rememberSaveable(course.id, resultTitle, index) { mutableStateOf<Int?>(null) }
@@ -230,7 +239,7 @@ private fun QuizCard(
     GlassCard(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             if (finished) {
-                ResultSummary(resultTitle, score, questions.size, onComplete)
+                ResultSummary(resultTitle, score, questions.size) { onComplete(score, questions.size) }
             } else {
                 val question = questions[index]
                 Badge("${index + 1}/${questions.size}", course.accent.copy(alpha = 0.65f))

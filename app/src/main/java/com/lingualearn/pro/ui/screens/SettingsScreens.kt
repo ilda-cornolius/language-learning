@@ -20,6 +20,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.lingualearn.pro.data.SampleContent
+import com.lingualearn.pro.data.ProgressState
 import com.lingualearn.pro.ui.components.AeroProgressBar
 import com.lingualearn.pro.ui.components.BodyText
 import com.lingualearn.pro.ui.components.CardTitle
@@ -33,7 +34,7 @@ import com.lingualearn.pro.ui.theme.VistaGreen
 import com.lingualearn.pro.ui.theme.VistaTeal
 
 @Composable
-fun ProfileScreen() {
+fun ProfileScreen(progress: ProgressState) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         GlassCard(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -49,9 +50,20 @@ fun ProfileScreen() {
                     }
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    StatTile("Total XP", "3,250", Modifier.weight(1f))
-                    StatTile("Lessons Completed", "47", Modifier.weight(1f))
+                    StatTile("Total XP", progress.totalXp.toString(), Modifier.weight(1f))
+                    StatTile("Lessons Completed", progress.lessonsCompleted.toString(), Modifier.weight(1f))
                 }
+            }
+        }
+
+        GlassCard(Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    CardTitle("Level ${progress.level}")
+                    BodyText("${progress.xpIntoLevel} / ${ProgressState.XP_PER_LEVEL} XP")
+                }
+                AeroProgressBar(progress.levelProgress, VistaGreen, height = 10.dp)
+                BodyText("${progress.xpToNextLevel} XP to the next level", color = TextMuted)
             }
         }
 

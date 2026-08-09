@@ -46,10 +46,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.lingualearn.pro.data.LanguageCourse
+import com.lingualearn.pro.data.ProgressState
+import com.lingualearn.pro.data.ProgressStore
 import com.lingualearn.pro.data.SampleContent
 import com.lingualearn.pro.ui.components.AeroBackground
 import com.lingualearn.pro.ui.components.Badge
@@ -65,12 +68,15 @@ import com.lingualearn.pro.ui.screens.GoogleToolsScreen
 import com.lingualearn.pro.ui.screens.GrammarDrillsScreen
 import com.lingualearn.pro.ui.screens.InstagramScreen
 import com.lingualearn.pro.ui.screens.GrammarLessonScreen
+import com.lingualearn.pro.ui.screens.GrammarSprintScreen
 import com.lingualearn.pro.ui.screens.ListeningScreen
+import com.lingualearn.pro.ui.screens.MemoryMatchScreen
 import com.lingualearn.pro.ui.screens.PracticeHubScreen
 import com.lingualearn.pro.ui.screens.PreferencesScreen
 import com.lingualearn.pro.ui.screens.ProfileScreen
 import com.lingualearn.pro.ui.screens.PronunciationLabScreen
 import com.lingualearn.pro.ui.screens.QuickReviewScreen
+import com.lingualearn.pro.ui.screens.SpeedRoundScreen
 import com.lingualearn.pro.ui.screens.VocabularyScreen
 import com.lingualearn.pro.ui.screens.WritingScreen
 import com.lingualearn.pro.ui.theme.GlassTileStrong
@@ -88,6 +94,9 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun LinguaLearnApp() {
+    val context = LocalContext.current
+    val progressStore = remember(context) { ProgressStore(context.applicationContext) }
+    val progress = progressStore.state
     var current by remember { mutableStateOf(Destination.Lesson) }
     var activeLanguageId by remember { mutableStateOf("spanish") }
     val activeCourse = SampleContent.courseById(activeLanguageId)
@@ -126,10 +135,11 @@ fun LinguaLearnApp() {
                                 .background(Color(0x1A000000)),
                         )
                         Column(Modifier.weight(1f)) {
-                            LanguageToolbar(current) { navigate(it) }
+                            LanguageToolbar(current, progress) { navigate(it) }
                             ContentArea(
                                 current = current,
                                 activeCourse = activeCourse,
+                                progressStore = progressStore,
                                 onNavigate = { navigate(it) },
                                 showWidgets = false,
                                 modifier = Modifier.weight(1f),
@@ -137,6 +147,7 @@ fun LinguaLearnApp() {
                         }
                         WidgetsPanel(
                             current = current,
+                            progress = progress,
                             modifier = Modifier
                                 .width(230.dp)
                                 .fillMaxHeight()
@@ -175,10 +186,11 @@ fun LinguaLearnApp() {
                             showLessonActions = current == Destination.Lesson,
                             onLessonSettings = { current = Destination.Preferences },
                         )
-                        LanguageToolbar(current) { navigate(it) }
+                        LanguageToolbar(current, progress) { navigate(it) }
                         ContentArea(
                             current = current,
                             activeCourse = activeCourse,
+                            progressStore = progressStore,
                             onNavigate = { navigate(it) },
                             showWidgets = true,
                             modifier = Modifier.weight(1f),
@@ -371,7 +383,11 @@ private fun SidebarRow(
 }
 
 @Composable
-private fun LanguageToolbar(current: Destination, onSelect: (Destination) -> Unit) {
+private fun LanguageToolbar(
+    current: Destination,
+    progress: ProgressState,
+    onSelect: (Destination) -> Unit,
+) {
     Row(
         Modifier
             .fillMaxWidth()
@@ -389,8 +405,8 @@ private fun LanguageToolbar(current: Destination, onSelect: (Destination) -> Uni
             )
         }
         Spacer(Modifier.width(4.dp))
-        StatChip(Icons.Filled.LocalFireDepartment, "5 day streak", VistaAccent)
-        StatChip(Icons.Filled.Diamond, "320 points", VistaTeal)
+        StatChip(Icons.Filled.LocalFireDepartment, "${progress.currentStreak} day streak", VistaAccent)
+        StatChip(Icons.Filled.Diamond, "${progress.totalXp} XP · Lv ${progress.level}", VistaTeal)
     }
 }
 
@@ -460,6 +476,7 @@ private fun StatChip(icon: androidx.compose.ui.graphics.vector.ImageVector, labe
 private fun ContentArea(
     current: Destination,
     activeCourse: LanguageCourse,
+    progressStore: ProgressStore,
     onNavigate: (Destination) -> Unit,
     showWidgets: Boolean,
     modifier: Modifier = Modifier,
@@ -474,10 +491,17 @@ private fun ContentArea(
         when (current) {
             Destination.Lesson -> GrammarLessonScreen(
                 course = activeCourse,
-                onComplete = { onNavigate(Destination.Practice) },
+                onComplete = {
+                    progressStore.awardOnce(
+                        "lesson:${ProgressStore.todayKey()}:${activeCourse.id}:grammar",
+                        100,
+                        lessonCompleted = true,
+                    )
+                    onNavigate(Destination.Practice)
+                },
             )
             Destination.Spanish, Destination.French, Destination.Japanese -> {
-                CourseDashboardScreen(activeCourse)
+                CourseDashboardScreen(activeCourse, progressStore.state)
             }
             Destination.Vocabulary -> VocabularyScreen(activeCourse)
             Destination.Conversation -> ConversationScreen(activeCourse)
@@ -486,7 +510,7 @@ private fun ContentArea(
             Destination.Assistant -> AssistantScreen(activeCourse)
             Destination.Instagram -> InstagramScreen()
             Destination.Google -> GoogleToolsScreen(activeCourse)
-            Destination.Profile -> ProfileScreen()
+            Destination.Profile -> ProfileScreen(progressStore.state)
             Destination.Preferences -> PreferencesScreen()
             Destination.DailyLesson -> DailyGrammarLessonScreen(
                 course = activeCourse,
@@ -501,10 +525,21 @@ private fun ContentArea(
             Destination.QuickReview -> QuickReviewScreen(
                 course = activeCourse,
                 onBack = { onNavigate(Destination.Practice) },
+                onComplete = { score, total ->
+                    val prefix = "activity:${ProgressStore.todayKey()}:${activeCourse.id}:quick-review"
+                    progressStore.awardOnce(prefix, 50)
+                    if (score == total) progressStore.awardOnce("$prefix:perfect", 25)
+                },
             )
             Destination.GrammarDrills -> GrammarDrillsScreen(
                 course = activeCourse,
                 onBack = { onNavigate(Destination.Practice) },
+                onComplete = { score, total ->
+                    val prefix = "activity:${ProgressStore.todayKey()}:${activeCourse.id}:grammar-drills"
+                    progressStore.awardOnce(prefix, 50)
+                    if (score == total) progressStore.awardOnce("$prefix:perfect", 25)
+                    onNavigate(Destination.Practice)
+                },
             )
             Destination.PronunciationLab -> PronunciationLabScreen(
                 course = activeCourse,
@@ -515,7 +550,27 @@ private fun ContentArea(
                 onBack = { onNavigate(Destination.Practice) },
                 onReview = { onNavigate(Destination.QuickReview) },
             )
-            Destination.Challenges -> ChallengesScreen()
+            Destination.Challenges -> ChallengesScreen(
+                progressStore = progressStore,
+                onSpeedRound = { onNavigate(Destination.SpeedRound) },
+                onMemoryMatch = { onNavigate(Destination.MemoryMatch) },
+                onGrammarSprint = { onNavigate(Destination.GrammarSprint) },
+            )
+            Destination.SpeedRound -> SpeedRoundScreen(
+                activeCourse,
+                progressStore,
+                onBack = { onNavigate(Destination.Challenges) },
+            )
+            Destination.MemoryMatch -> MemoryMatchScreen(
+                activeCourse,
+                progressStore,
+                onBack = { onNavigate(Destination.Challenges) },
+            )
+            Destination.GrammarSprint -> GrammarSprintScreen(
+                activeCourse,
+                progressStore,
+                onBack = { onNavigate(Destination.Challenges) },
+            )
         }
 
         if (showWidgets) {
@@ -528,6 +583,9 @@ private fun ContentArea(
                 current == Destination.PronunciationLab ||
                 current == Destination.DictationNotebook ||
                 current == Destination.Challenges ||
+                current == Destination.SpeedRound ||
+                current == Destination.MemoryMatch ||
+                current == Destination.GrammarSprint ||
                 current == Destination.DailyLesson ||
                 current == Destination.Assistant ||
                 current == Destination.Lesson ||
@@ -541,6 +599,9 @@ private fun ContentArea(
                 current == Destination.PronunciationLab ||
                 current == Destination.DictationNotebook ||
                 current == Destination.Challenges ||
+                current == Destination.SpeedRound ||
+                current == Destination.MemoryMatch ||
+                current == Destination.GrammarSprint ||
                 current == Destination.DailyLesson ||
                 current == Destination.Assistant ||
                 current == Destination.Listening ||
@@ -554,9 +615,13 @@ private fun ContentArea(
                 }
             }
             if (!hideDailyProgress) {
-                DailyProgressWidget()
+                DailyProgressWidget(progressStore.state)
             }
-            if (current != Destination.Challenges) {
+            if (current != Destination.Challenges &&
+                current != Destination.SpeedRound &&
+                current != Destination.MemoryMatch &&
+                current != Destination.GrammarSprint
+            ) {
                 DestinationWidget()
             }
         }
@@ -564,7 +629,7 @@ private fun ContentArea(
 }
 
 @Composable
-private fun WidgetsPanel(current: Destination, modifier: Modifier = Modifier) {
+private fun WidgetsPanel(current: Destination, progress: ProgressState, modifier: Modifier = Modifier) {
     val isCourseDashboard = current == Destination.Spanish ||
         current == Destination.French ||
         current == Destination.Japanese
@@ -574,6 +639,9 @@ private fun WidgetsPanel(current: Destination, modifier: Modifier = Modifier) {
         current == Destination.PronunciationLab ||
         current == Destination.DictationNotebook ||
         current == Destination.Challenges ||
+        current == Destination.SpeedRound ||
+        current == Destination.MemoryMatch ||
+        current == Destination.GrammarSprint ||
         current == Destination.DailyLesson ||
         current == Destination.Assistant ||
         current == Destination.Lesson ||
@@ -587,6 +655,9 @@ private fun WidgetsPanel(current: Destination, modifier: Modifier = Modifier) {
         current == Destination.PronunciationLab ||
         current == Destination.DictationNotebook ||
         current == Destination.Challenges ||
+        current == Destination.SpeedRound ||
+        current == Destination.MemoryMatch ||
+        current == Destination.GrammarSprint ||
         current == Destination.DailyLesson ||
         current == Destination.Assistant ||
         current == Destination.Listening ||
@@ -599,9 +670,13 @@ private fun WidgetsPanel(current: Destination, modifier: Modifier = Modifier) {
             ClockWidget()
         }
         if (!hideDailyProgress) {
-            DailyProgressWidget()
+            DailyProgressWidget(progress)
         }
-        if (current != Destination.Challenges) {
+        if (current != Destination.Challenges &&
+            current != Destination.SpeedRound &&
+            current != Destination.MemoryMatch &&
+            current != Destination.GrammarSprint
+        ) {
             DestinationWidget()
         }
     }

@@ -37,6 +37,7 @@ import coil.compose.SubcomposeAsyncImage
 import coil.request.ImageRequest
 import com.lingualearn.pro.data.PhotoOfTheDay
 import com.lingualearn.pro.data.PhotoOfTheDayRepository
+import com.lingualearn.pro.data.ProgressState
 import com.lingualearn.pro.ui.components.AeroProgressBar
 import com.lingualearn.pro.ui.components.GlassCard
 import com.lingualearn.pro.ui.theme.TextPrimary
@@ -94,7 +95,7 @@ fun CalendarWidget(modifier: Modifier = Modifier) {
 }
 
 @Composable
-fun DailyProgressWidget(modifier: Modifier = Modifier) {
+fun DailyProgressWidget(progress: ProgressState, modifier: Modifier = Modifier) {
     GlassCard(modifier.fillMaxWidth()) {
         Column(
             Modifier.padding(14.dp),
@@ -105,8 +106,18 @@ fun DailyProgressWidget(modifier: Modifier = Modifier) {
                 style = MaterialTheme.typography.titleMedium,
                 color = TextPrimary,
             )
-            ProgressRow("XP", "65/100", 0.65f, VistaGreen)
-            ProgressRow("Lessons", "2/3", 0.66f, VistaBlue)
+            ProgressRow(
+                "Level ${progress.level}",
+                "${progress.xpIntoLevel}/${ProgressState.XP_PER_LEVEL} XP",
+                progress.levelProgress,
+                VistaGreen,
+            )
+            ProgressRow(
+                "Lessons",
+                "${progress.lessonsCompleted} completed",
+                (progress.lessonsCompleted.coerceAtMost(10) / 10f),
+                VistaBlue,
+            )
         }
     }
 }

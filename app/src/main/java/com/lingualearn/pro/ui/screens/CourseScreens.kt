@@ -11,6 +11,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.lingualearn.pro.data.LanguageCourse
+import com.lingualearn.pro.data.ProgressState
 import com.lingualearn.pro.ui.components.AeroProgressBar
 import com.lingualearn.pro.ui.components.BodyText
 import com.lingualearn.pro.ui.components.BulletList
@@ -21,13 +22,13 @@ import com.lingualearn.pro.ui.widgets.ClockWidget
 import com.lingualearn.pro.ui.widgets.DailyProgressWidget
 
 @Composable
-fun CourseDashboardScreen(course: LanguageCourse) {
+fun CourseDashboardScreen(course: LanguageCourse, progress: ProgressState) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             CalendarWidget(Modifier.weight(1f))
             ClockWidget(Modifier.weight(1f))
         }
-        DailyProgressWidget()
+        DailyProgressWidget(progress)
 
         GlassCard(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {

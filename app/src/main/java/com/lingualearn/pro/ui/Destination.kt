@@ -40,7 +40,10 @@ enum class Destination(
     GrammarDrills("grammar-drills", "Grammar Drills", "Grammar Drills", Icons.Filled.School),
     PronunciationLab("pronunciation-lab", "Pronunciation Lab", "Pronunciation Lab", Icons.Filled.Headphones),
     DictationNotebook("dictation-notebook", "Dictation Notebook", "Dictation Notebook", Icons.Filled.Edit),
-    Challenges("challenges", "Weekly Challenges", "Challenges", Icons.Filled.EmojiEvents);
+    Challenges("challenges", "Weekly Challenges", "Challenges", Icons.Filled.EmojiEvents),
+    SpeedRound("speed-round", "Speed Round", "Speed Round", Icons.Filled.EmojiEvents),
+    MemoryMatch("memory-match", "Memory Match", "Memory Match", Icons.Filled.EmojiEvents),
+    GrammarSprint("grammar-sprint", "Grammar Sprint", "Grammar Sprint", Icons.Filled.EmojiEvents);
 
     companion object {
         val activities = listOf(Vocabulary, Conversation, Listening, Writing, Assistant)
@@ -74,6 +77,9 @@ enum class Destination(
             PronunciationLab -> "$languageName Pronunciation Lab"
             DictationNotebook -> "$languageName Dictation Notebook"
             Challenges -> "$languageName Weekly Challenges"
+            SpeedRound -> "$languageName Speed Round"
+            MemoryMatch -> "$languageName Memory Match"
+            GrammarSprint -> "$languageName Grammar Sprint"
             Lesson -> "$languageName Grammar Lesson"
             else -> destination.title
         }
