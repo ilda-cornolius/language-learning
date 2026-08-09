@@ -78,6 +78,20 @@ data class PracticePack(
     val localeTag: String,
 )
 
+data class ConversationTurn(
+    val prompt: String,
+    val translation: String,
+    val options: List<String>,
+    val correctIndex: Int,
+)
+
+data class ConversationScenario(
+    val id: String,
+    val title: String,
+    val description: String,
+    val turns: List<ConversationTurn>,
+)
+
 object SampleContent {
 
     val courses = listOf(
@@ -155,6 +169,7 @@ object SampleContent {
         val nativeLabel: String,
         val listeningTitle: String,
         val listeningDescription: String,
+        val listeningPhrases: List<GrammarExample>,
         val writingPrompt: String,
         val writingPlaceholder: String,
         val writingSuccess: String,
@@ -170,7 +185,14 @@ object SampleContent {
             nativeLabel = "français",
             listeningTitle = "French Café Podcast",
             listeningDescription = "Listen to everyday conversations in French",
-            writingPrompt = "Describe your ideal vacation in French (100 words minimum)",
+            listeningPhrases = listOf(
+                GrammarExample("Bonjour, je voudrais un café.", "Hello, I would like a coffee."),
+                GrammarExample("Où est la gare, s’il vous plaît ?", "Where is the train station, please?"),
+                GrammarExample("J’ai passé une bonne journée.", "I had a good day."),
+                GrammarExample("Parlez-vous anglais ?", "Do you speak English?"),
+                GrammarExample("Merci beaucoup !", "Thank you very much!"),
+            ),
+            writingPrompt = "Describe your ideal vacation in French (40 words minimum)",
             writingPlaceholder = "Écrivez ici...",
             writingSuccess = "Très bien! Your tutor will review this entry.",
             tutorGreeting = "Bonjour! I'm your AI French tutor. How can I help you today?",
@@ -188,7 +210,14 @@ object SampleContent {
             nativeLabel = "日本語",
             listeningTitle = "Japanese Daily Podcast",
             listeningDescription = "Listen to beginner-friendly Japanese clips",
-            writingPrompt = "Describe your ideal vacation in Japanese (as much as you can)",
+            listeningPhrases = listOf(
+                GrammarExample("こんにちは。お元気ですか。", "Hello. How are you?"),
+                GrammarExample("駅はどこですか。", "Where is the station?"),
+                GrammarExample("コーヒーをお願いします。", "Coffee, please."),
+                GrammarExample("わたしは日本語を勉強しています。", "I am studying Japanese."),
+                GrammarExample("ありがとうございます。", "Thank you."),
+            ),
+            writingPrompt = "Describe your ideal vacation in Japanese (40 words minimum)",
             writingPlaceholder = "ここに書いてください...",
             writingSuccess = "よくできました! Your tutor will review this entry.",
             tutorGreeting = "こんにちは! I'm your AI Japanese tutor. How can I help you today?",
@@ -206,13 +235,254 @@ object SampleContent {
             nativeLabel = "español",
             listeningTitle = "Spanish News Podcast",
             listeningDescription = "Listen to current events in Spanish",
-            writingPrompt = "Describe your ideal vacation in Spanish (100 words minimum)",
+            listeningPhrases = listOf(
+                GrammarExample("Buenos días, ¿cómo está usted?", "Good morning, how are you?"),
+                GrammarExample("¿Dónde está la estación?", "Where is the station?"),
+                GrammarExample("Me gustaría un café, por favor.", "I would like a coffee, please."),
+                GrammarExample("Ayer fui al cine con mis amigos.", "Yesterday I went to the movies with my friends."),
+                GrammarExample("Muchas gracias por su ayuda.", "Thank you very much for your help."),
+            ),
+            writingPrompt = "Describe your ideal vacation in Spanish (40 words minimum)",
             writingPlaceholder = "Escribe aquí...",
             writingSuccess = "¡Bien hecho! Your tutor will review this entry.",
             tutorGreeting = "¡Hola! I'm your AI Spanish tutor. How can I help you today?",
             tutorPlaceholder = "Ask me anything about Spanish...",
             tutorReplies = spanishTutorReplies,
             conversationNote = "Practice these scenarios in Spanish",
+        )
+    }
+
+    fun conversationScenarios(courseId: String): List<ConversationScenario> = when (courseId) {
+        "french" -> listOf(
+            ConversationScenario(
+                id = "restaurant",
+                title = "Restaurant Conversation",
+                description = "Practice ordering food and drinks in French",
+                turns = listOf(
+                    ConversationTurn(
+                        "Bonjour ! Que désirez-vous ?",
+                        "Hello! What would you like?",
+                        listOf("Je voudrais un café.", "Je suis fatigué.", "Où est la gare ?"),
+                        0,
+                    ),
+                    ConversationTurn(
+                        "Et pour manger ?",
+                        "And to eat?",
+                        listOf("Un sandwich, s’il vous plaît.", "Bonsoir.", "Merci, au revoir."),
+                        0,
+                    ),
+                    ConversationTurn(
+                        "Ce sera tout ?",
+                        "Will that be all?",
+                        listOf("Oui, l’addition s’il vous plaît.", "Je parle anglais.", "Deux plus deux."),
+                        0,
+                    ),
+                ),
+            ),
+            ConversationScenario(
+                id = "travel",
+                title = "Travel Scenarios",
+                description = "Airport, hotel, and transportation in French",
+                turns = listOf(
+                    ConversationTurn(
+                        "Où allez-vous ?",
+                        "Where are you going?",
+                        listOf("À l’hôtel, s’il vous plaît.", "J’aime le fromage.", "Bonne nuit."),
+                        0,
+                    ),
+                    ConversationTurn(
+                        "Avez-vous une réservation ?",
+                        "Do you have a reservation?",
+                        listOf("Oui, au nom de Dupont.", "Je voudrais du pain.", "C’est rouge."),
+                        0,
+                    ),
+                    ConversationTurn(
+                        "Voici votre clé.",
+                        "Here is your key.",
+                        listOf("Merci beaucoup !", "Où est mon chien ?", "Trois cafés."),
+                        0,
+                    ),
+                ),
+            ),
+            ConversationScenario(
+                id = "small-talk",
+                title = "Small Talk",
+                description = "Weather, weekends, and introductions in French",
+                turns = listOf(
+                    ConversationTurn(
+                        "Comment allez-vous ?",
+                        "How are you?",
+                        listOf("Je vais bien, merci.", "Un billet pour Paris.", "L’addition."),
+                        0,
+                    ),
+                    ConversationTurn(
+                        "Que faites-vous ce week-end ?",
+                        "What are you doing this weekend?",
+                        listOf("Je vais au cinéma.", "Je voudrais du thé.", "Où est la banque ?"),
+                        0,
+                    ),
+                    ConversationTurn(
+                        "Quel temps fait-il ?",
+                        "How’s the weather?",
+                        listOf("Il fait beau aujourd’hui.", "Deux chambres.", "Le menu, s’il vous plaît."),
+                        0,
+                    ),
+                ),
+            ),
+        )
+        "japanese" -> listOf(
+            ConversationScenario(
+                id = "restaurant",
+                title = "Restaurant Conversation",
+                description = "Practice ordering food and drinks in Japanese",
+                turns = listOf(
+                    ConversationTurn(
+                        "いらっしゃいませ。ご注文は？",
+                        "Welcome. What would you like to order?",
+                        listOf("コーヒーをお願いします。", "駅はどこですか。", "おはようございます。"),
+                        0,
+                    ),
+                    ConversationTurn(
+                        "お食事はいかがですか？",
+                        "How about a meal?",
+                        listOf("ラーメンをお願いします。", "ありがとう。", "さようなら。"),
+                        0,
+                    ),
+                    ConversationTurn(
+                        "以上でよろしいですか？",
+                        "Is that all?",
+                        listOf("はい、お会計をお願いします。", "本を読みます。", "犬が好きです。"),
+                        0,
+                    ),
+                ),
+            ),
+            ConversationScenario(
+                id = "travel",
+                title = "Travel Scenarios",
+                description = "Airport, hotel, and transportation in Japanese",
+                turns = listOf(
+                    ConversationTurn(
+                        "どちらへ行きますか？",
+                        "Where are you going?",
+                        listOf("ホテルへ行きます。", "水をください。", "おはよう。"),
+                        0,
+                    ),
+                    ConversationTurn(
+                        "ご予約はありますか？",
+                        "Do you have a reservation?",
+                        listOf("はい、田中です。", "猫がいます。", "赤です。"),
+                        0,
+                    ),
+                    ConversationTurn(
+                        "これが鍵です。",
+                        "Here is the key.",
+                        listOf("ありがとうございます。", "映画を見ます。", "三です。"),
+                        0,
+                    ),
+                ),
+            ),
+            ConversationScenario(
+                id = "small-talk",
+                title = "Small Talk",
+                description = "Weather, weekends, and introductions in Japanese",
+                turns = listOf(
+                    ConversationTurn(
+                        "お元気ですか？",
+                        "How are you?",
+                        listOf("元気です。", "コーヒーです。", "駅です。"),
+                        0,
+                    ),
+                    ConversationTurn(
+                        "今週末は何をしますか？",
+                        "What will you do this weekend?",
+                        listOf("映画を見ます。", "お会計を。", "水です。"),
+                        0,
+                    ),
+                    ConversationTurn(
+                        "天気はどうですか？",
+                        "How’s the weather?",
+                        listOf("いい天気です。", "ラーメンを。", "鍵です。"),
+                        0,
+                    ),
+                ),
+            ),
+        )
+        else -> listOf(
+            ConversationScenario(
+                id = "restaurant",
+                title = "Restaurant Conversation",
+                description = "Practice ordering food and drinks in Spanish",
+                turns = listOf(
+                    ConversationTurn(
+                        "¡Buenas tardes! ¿Qué desea?",
+                        "Good afternoon! What would you like?",
+                        listOf("Quisiera un café, por favor.", "Estoy cansado.", "¿Dónde está la estación?"),
+                        0,
+                    ),
+                    ConversationTurn(
+                        "¿Y para comer?",
+                        "And to eat?",
+                        listOf("Un bocadillo, por favor.", "Buenas noches.", "Gracias, adiós."),
+                        0,
+                    ),
+                    ConversationTurn(
+                        "¿Algo más?",
+                        "Anything else?",
+                        listOf("La cuenta, por favor.", "Hablo inglés.", "Dos más dos."),
+                        0,
+                    ),
+                ),
+            ),
+            ConversationScenario(
+                id = "travel",
+                title = "Travel Scenarios",
+                description = "Airport, hotel, and transportation in Spanish",
+                turns = listOf(
+                    ConversationTurn(
+                        "¿Adónde va?",
+                        "Where are you going?",
+                        listOf("Al hotel, por favor.", "Me gusta el queso.", "Buenas noches."),
+                        0,
+                    ),
+                    ConversationTurn(
+                        "¿Tiene una reserva?",
+                        "Do you have a reservation?",
+                        listOf("Sí, a nombre de García.", "Quiero pan.", "Es rojo."),
+                        0,
+                    ),
+                    ConversationTurn(
+                        "Aquí tiene su llave.",
+                        "Here is your key.",
+                        listOf("¡Muchas gracias!", "¿Dónde está mi perro?", "Tres cafés."),
+                        0,
+                    ),
+                ),
+            ),
+            ConversationScenario(
+                id = "small-talk",
+                title = "Small Talk",
+                description = "Weather, weekends, and introductions in Spanish",
+                turns = listOf(
+                    ConversationTurn(
+                        "¿Cómo estás?",
+                        "How are you?",
+                        listOf("Estoy bien, gracias.", "Un billete a Madrid.", "La cuenta."),
+                        0,
+                    ),
+                    ConversationTurn(
+                        "¿Qué haces este fin de semana?",
+                        "What are you doing this weekend?",
+                        listOf("Voy al cine.", "Quiero té.", "¿Dónde está el banco?"),
+                        0,
+                    ),
+                    ConversationTurn(
+                        "¿Qué tiempo hace?",
+                        "How’s the weather?",
+                        listOf("Hace buen tiempo hoy.", "Dos habitaciones.", "El menú, por favor."),
+                        0,
+                    ),
+                ),
+            ),
         )
     }
 
@@ -340,7 +610,7 @@ object SampleContent {
         }
         return PracticePack(
             reviewWords = activity.vocabulary.take(6),
-            grammarQuestions = lesson.questions,
+            grammarQuestions = drillQuestions(courseId, lesson.questions),
             pronunciationPhrases = phrases,
             localeTag = when (courseId) {
                 "french" -> "fr-FR"
@@ -348,6 +618,57 @@ object SampleContent {
                 else -> "es-ES"
             },
         )
+    }
+
+    private fun drillQuestions(
+        courseId: String,
+        lessonQuestions: List<ExerciseQuestion>,
+    ): List<ExerciseQuestion> {
+        val extras = when (courseId) {
+            "french" -> listOf(
+                ExerciseQuestion(
+                    "Choose the correct article: ___ pomme",
+                    listOf("une", "un", "des"),
+                    0,
+                    "Pomme is feminine singular, so une.",
+                ),
+                ExerciseQuestion(
+                    "Complete: Nous ___ français.",
+                    listOf("parlons", "parlez", "parle"),
+                    0,
+                    "Nous takes the -ons ending: parlons.",
+                ),
+            )
+            "japanese" -> listOf(
+                ExerciseQuestion(
+                    "Which particle marks the topic?",
+                    listOf("は (wa)", "を (o)", "に (ni)"),
+                    0,
+                    "は marks the topic of the sentence.",
+                ),
+                ExerciseQuestion(
+                    "Complete: 水___飲みます。",
+                    listOf("を", "は", "が"),
+                    0,
+                    "を marks the direct object.",
+                ),
+            )
+            else -> listOf(
+                ExerciseQuestion(
+                    "Choose the correct article: ___ casa",
+                    listOf("la", "el", "los"),
+                    0,
+                    "Casa is feminine singular, so la.",
+                ),
+                ExerciseQuestion(
+                    "Complete: Nosotros ___ español.",
+                    listOf("hablamos", "hablan", "hablo"),
+                    0,
+                    "Nosotros takes -amos in the present: hablamos.",
+                ),
+            )
+        }
+        return (extras + lessonQuestions).distinctBy { it.prompt }
     }
 
     fun dictionaryWords(courseId: String): List<VocabWord> {
@@ -397,6 +718,74 @@ object SampleContent {
     fun courseById(id: String): LanguageCourse =
         courses.firstOrNull { it.id == id } ?: courses.first()
 
+    data class SocialFeed(
+        val follows: List<SuggestedFollow>,
+        val posts: List<SocialPost>,
+    )
+
+    fun socialFeed(courseId: String): SocialFeed = when (courseId) {
+        "french" -> SocialFeed(
+            follows = listOf(
+                SuggestedFollow("@claire_paris", "Native Speaker"),
+                SuggestedFollow("@french_daily", "Learning Tips"),
+                SuggestedFollow("@cafe_chat", "Language Exchange"),
+            ),
+            posts = listOf(
+                SocialPost(
+                    id = 101,
+                    author = "@claire_paris",
+                    body = "\"Mot du jour: 'flâner' — to stroll without a goal. Perfect for Paris weekends.\"",
+                    likes = 31,
+                    comments = listOf(
+                        PostComment("@learner_sam", "I love this word! Merci Claire."),
+                        PostComment("@bonjour_ben", "Adding this to my notebook."),
+                    ),
+                ),
+                SocialPost(
+                    id = 102,
+                    author = "@french_daily",
+                    body = "\"Tip: listen to French podcasts at 0.8x speed, then bump to normal.\"",
+                    likes = 48,
+                    comments = listOf(
+                        PostComment("@polyglot_mia", "This helped my listening a lot!"),
+                    ),
+                ),
+            ),
+        )
+        "japanese" -> SocialFeed(
+            follows = listOf(
+                SuggestedFollow("@yuki_tokyo", "Native Speaker"),
+                SuggestedFollow("@nihongo_tips", "Learning Tips"),
+                SuggestedFollow("@kanji_club", "Study Group"),
+            ),
+            posts = listOf(
+                SocialPost(
+                    id = 201,
+                    author = "@yuki_tokyo",
+                    body = "\"今日の単語: がんばる — to do your best. みんな、がんばって！\"",
+                    likes = 56,
+                    comments = listOf(
+                        PostComment("@hiro_learner", "Timing is perfect before my quiz."),
+                        PostComment("@sakura_san", "Short and useful. Thanks!"),
+                    ),
+                ),
+                SocialPost(
+                    id = 202,
+                    author = "@nihongo_tips",
+                    body = "\"Practice tip: shadow anime lines with Japanese subtitles, then without.\"",
+                    likes = 39,
+                    comments = listOf(
+                        PostComment("@anime_alex", "Doing this with Shirokuma Cafe."),
+                    ),
+                ),
+            ),
+        )
+        else -> SocialFeed(
+            follows = suggestedFollows,
+            posts = posts,
+        )
+    }
+
     val suggestedFollows = listOf(
         SuggestedFollow("@maria_spanish", "Native Speaker"),
         SuggestedFollow("@carlos_madrid", "Language Exchange"),
@@ -424,22 +813,6 @@ object SampleContent {
                 PostComment("@beginner_sara", "Should I start with English subtitles first? I'm still a beginner \uD83E\uDD14"),
                 PostComment("@carlos_madrid", "@beginner_sara Yes! Start with English subs, then switch to Spanish when you feel ready \uD83D\uDC4D"),
             ),
-        ),
-    )
-
-    val challenges = listOf(
-        Challenge(
-            title = "Speed Round Challenge",
-            description = "Translate 20 words in under 2 minutes",
-            reward = "500 XP",
-            actionable = true,
-        ),
-        Challenge(
-            title = "Perfect Week",
-            description = "Complete lessons 7 days in a row",
-            reward = "1000 XP",
-            actionable = false,
-            progressLabel = "4/7 days",
         ),
     )
 

@@ -1,6 +1,10 @@
 package com.lingualearn.pro.ui.screens
 
 import android.content.Context
+import android.Manifest
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.speech.RecognizerIntent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -35,6 +39,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.core.content.ContextCompat
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.ApiException
@@ -43,12 +48,13 @@ import com.lingualearn.pro.data.CloudWordRepository
 import com.lingualearn.pro.data.DictionaryLookupRepository
 import com.lingualearn.pro.data.LanguageCourse
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import kotlin.math.max
 import com.lingualearn.pro.data.PostComment
 import com.lingualearn.pro.data.SampleContent
 import com.lingualearn.pro.data.SavedWordRepository
 import com.lingualearn.pro.data.SocialPost
+import com.lingualearn.pro.data.SocialStore
 import com.lingualearn.pro.ui.components.AeroButton
 import com.lingualearn.pro.ui.components.BodyText
 import com.lingualearn.pro.ui.components.CardTitle
@@ -65,13 +71,18 @@ import com.lingualearn.pro.ui.theme.VistaTeal
 import kotlinx.coroutines.launch
 
 @Composable
-fun InstagramScreen() {
+fun InstagramScreen(course: LanguageCourse) {
+    val context = LocalContext.current
+    val socialStore = remember(context) { SocialStore(context.applicationContext) }
+    val feed = remember(course.id) { SampleContent.socialFeed(course.id) }
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         GlassCard(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                CardTitle("Connect with Spanish Speakers")
-                SampleContent.suggestedFollows.forEach { suggestion ->
-                    var following by remember { mutableStateOf(false) }
+                CardTitle("Connect with ${course.name} Speakers")
+                feed.follows.forEach { suggestion ->
+                    var following by remember(suggestion.handle) {
+                        mutableStateOf(socialStore.isFollowing(suggestion.handle))
+                    }
                     GlassTile(Modifier.fillMaxWidth()) {
                         Row(
                             Modifier
@@ -100,7 +111,10 @@ fun InstagramScreen() {
                             AeroButton(
                                 text = if (following) "Following" else "Follow",
                                 color = if (following) VistaGreen else VistaAccent,
-                                onClick = { following = !following },
+                                onClick = {
+                                    following = !following
+                                    socialStore.setFollowing(suggestion.handle, following)
+                                },
                             )
                         }
                     }
@@ -111,17 +125,21 @@ fun InstagramScreen() {
         GlassCard(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 CardTitle("Language Learning Posts")
-                SampleContent.posts.forEach { post -> PostCard(post) }
+                feed.posts.forEach { post -> PostCard(post, socialStore) }
             }
         }
     }
 }
 
 @Composable
-private fun PostCard(post: SocialPost) {
-    var liked by remember { mutableStateOf(false) }
+private fun PostCard(post: SocialPost, socialStore: SocialStore) {
+    var liked by remember(post.id) { mutableStateOf(socialStore.isLiked(post.id)) }
     var commentsOpen by remember { mutableStateOf(false) }
-    val comments = remember(post.id) { mutableStateListOf<PostComment>().apply { addAll(post.comments) } }
+    val comments = remember(post.id) {
+        mutableStateListOf<PostComment>().apply {
+            addAll(socialStore.commentsFor(post.id, post.comments))
+        }
+    }
     var draft by remember { mutableStateOf("") }
     val likeCount = post.likes + if (liked) 1 else 0
 
@@ -153,7 +171,10 @@ private fun PostCard(post: SocialPost) {
                         )
                     },
                     label = "$likeCount likes",
-                    onClick = { liked = !liked },
+                    onClick = {
+                        liked = !liked
+                        socialStore.setLiked(post.id, liked)
+                    },
                 )
                 CounterAction(
                     icon = { tint ->
@@ -202,7 +223,8 @@ private fun PostCard(post: SocialPost) {
                             text = "Post",
                             onClick = {
                                 if (draft.isNotBlank()) {
-                                    comments.add(PostComment("@you", draft))
+                                    comments.add(PostComment("@you", draft.trim()))
+                                    socialStore.saveComments(post.id, comments.toList())
                                     draft = ""
                                 }
                             },
@@ -237,7 +259,10 @@ private fun CounterAction(
 }
 
 @Composable
-fun GoogleToolsScreen(course: LanguageCourse) {
+fun GoogleToolsScreen(
+    course: LanguageCourse,
+    onVoiceComplete: () -> Unit = {},
+) {
     val context = LocalContext.current
     var source by remember { mutableStateOf("") }
     var translation by remember { mutableStateOf("") }
@@ -247,6 +272,12 @@ fun GoogleToolsScreen(course: LanguageCourse) {
     var pendingSave by remember { mutableStateOf<Pair<String, String>?>(null) }
     var docsStatus by remember { mutableStateOf("") }
     var listening by remember { mutableStateOf(false) }
+    var heard by remember { mutableStateOf("") }
+    var voiceFeedback by remember { mutableStateOf("Practice pronunciation with Google Voice") }
+    val practicePhrase = remember(course.id) {
+        SampleContent.practicePack(course.id).pronunciationPhrases.first()
+    }
+    val pack = remember(course.id) { SampleContent.practicePack(course.id) }
     val scope = rememberCoroutineScope()
     val uriHandler = LocalUriHandler.current
     val googleSignInClient = remember(context) {
@@ -260,6 +291,41 @@ fun GoogleToolsScreen(course: LanguageCourse) {
         "french" -> "fr"
         "japanese" -> "ja"
         else -> "es"
+    }
+
+    val voiceLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        listening = false
+        val text = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
+        if (text == null) {
+            voiceFeedback = "I couldn't hear that. Try again."
+        } else {
+            heard = text
+            val score = googleVoiceScore(practicePhrase.phrase, text)
+            voiceFeedback = if (score >= 70) {
+                onVoiceComplete()
+                "Nice! $score% match."
+            } else {
+                "Good try — $score% match. Aim for 70%+."
+            }
+        }
+    }
+
+    fun startVoicePractice() {
+        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE, pack.localeTag)
+            putExtra(RecognizerIntent.EXTRA_PROMPT, practicePhrase.phrase)
+        }
+        listening = true
+        runCatching { voiceLauncher.launch(intent) }
+            .onFailure {
+                listening = false
+                voiceFeedback = "Speech recognition is unavailable."
+            }
+    }
+
+    val micPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
+        if (it) startVoicePractice() else voiceFeedback = "Microphone permission is required."
     }
 
     LaunchedEffect(Unit) {
@@ -415,6 +481,7 @@ fun GoogleToolsScreen(course: LanguageCourse) {
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 CardTitle("Voice Search Practice")
+                BodyText("Say: “${practicePhrase.phrase}”", color = TextMuted)
                 Box(
                     Modifier
                         .size(80.dp)
@@ -429,39 +496,50 @@ fun GoogleToolsScreen(course: LanguageCourse) {
                     )
                 }
                 BodyText(
-                    text = if (listening) "Listening... say \"¿dónde está la estación?\""
-                    else "Practice pronunciation with Google Voice",
+                    text = if (listening) "Listening…" else voiceFeedback,
                     modifier = Modifier.fillMaxWidth(),
                 )
+                if (heard.isNotBlank()) {
+                    BodyText("I heard: “$heard”", color = TextMuted)
+                }
                 AeroButton(
-                    text = if (listening) "Stop" else "Start Voice Practice",
+                    text = if (listening) "Listening…" else "Start Voice Practice",
                     color = VistaTeal,
-                    onClick = { listening = !listening },
+                    onClick = {
+                        if (listening) return@AeroButton
+                        if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) ==
+                            PackageManager.PERMISSION_GRANTED
+                        ) {
+                            startVoicePractice()
+                        } else {
+                            micPermission.launch(Manifest.permission.RECORD_AUDIO)
+                        }
+                    },
                 )
             }
         }
 
         GlassCard(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                CardTitle("Google Docs Integration")
-                BodyText("Create and share ${course.name} learning documents")
+                CardTitle("Google Docs & Drive")
+                BodyText("Opens Google Docs or Drive in your browser for ${course.name} notes")
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     AeroButton(
-                        "Create Doc",
+                        "Open Google Docs",
                         onClick = {
                             runCatching { uriHandler.openUri("https://docs.new") }
-                                .onSuccess { docsStatus = "Opening a new Google document…" }
+                                .onSuccess { docsStatus = "Opening Google Docs in your browser…" }
                                 .onFailure { docsStatus = "No browser or Google Docs app is available." }
                         },
                         color = VistaBlue,
                     )
                     AeroButton(
-                        "View Shared",
+                        "Open Google Drive",
                         onClick = {
                             runCatching {
                                 uriHandler.openUri("https://drive.google.com/drive/shared-with-me")
                             }
-                                .onSuccess { docsStatus = "Opening documents shared with you…" }
+                                .onSuccess { docsStatus = "Opening Google Drive in your browser…" }
                                 .onFailure { docsStatus = "No browser or Google Drive app is available." }
                         },
                         color = VistaGreen,
@@ -471,6 +549,25 @@ fun GoogleToolsScreen(course: LanguageCourse) {
             }
         }
     }
+}
+
+private fun googleVoiceScore(target: String, spoken: String): Int {
+    fun normalize(value: String) = value.lowercase().replace(Regex("[\\p{P}\\p{Z}\\s]"), "")
+    val expected = normalize(target)
+    val actual = normalize(spoken)
+    if (expected.isEmpty() || actual.isEmpty()) return 0
+    val row = IntArray(actual.length + 1) { it }
+    for (i in expected.indices) {
+        var diagonal = row[0]
+        row[0] = i + 1
+        for (j in actual.indices) {
+            val above = row[j + 1]
+            row[j + 1] = minOf(row[j + 1] + 1, row[j] + 1, diagonal + if (expected[i] == actual[j]) 0 else 1)
+            diagonal = above
+        }
+    }
+    return ((1f - row[actual.length].toFloat() / max(expected.length, actual.length)) * 100)
+        .toInt().coerceIn(0, 100)
 }
 
 /**
@@ -577,16 +674,6 @@ private suspend fun syncLocalWordsToCloud(context: Context): Int {
             source = "dictation_notebook",
         )
     }
+    if (words.isNotEmpty()) CloudWordRepository.markSynced()
     return words.size
-}
-
-@Composable
-fun CenteredHint(text: String) {
-    Text(
-        text = text,
-        color = TextMuted,
-        textAlign = TextAlign.Center,
-        style = MaterialTheme.typography.bodySmall,
-        modifier = Modifier.fillMaxWidth(),
-    )
 }

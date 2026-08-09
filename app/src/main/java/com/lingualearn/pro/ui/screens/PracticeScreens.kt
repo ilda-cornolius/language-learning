@@ -44,9 +44,11 @@ import com.lingualearn.pro.data.CloudWordRepository
 import com.lingualearn.pro.data.DictionaryLookupRepository
 import com.lingualearn.pro.data.ExerciseQuestion
 import com.lingualearn.pro.data.LanguageCourse
+import com.lingualearn.pro.data.PreferencesStore
 import com.lingualearn.pro.data.SampleContent
 import com.lingualearn.pro.data.SavedWord
 import com.lingualearn.pro.data.SavedWordRepository
+import com.lingualearn.pro.data.SoundEffects
 import com.lingualearn.pro.data.VocabWord
 import com.lingualearn.pro.ui.components.AeroButton
 import com.lingualearn.pro.ui.components.Badge
@@ -127,12 +129,20 @@ fun PracticeHubScreen(
     onGrammarDrills: () -> Unit,
     onPronunciationLab: () -> Unit,
     onDictationNotebook: () -> Unit,
+    onFlashcards: () -> Unit = {},
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         PracticeEntry("Quick Review", "Practice words you've learned recently", "Start Review", Color(0xFF2ABBC4), onQuickReview)
         PracticeEntry("Grammar Drills", "Focus on verb conjugations and sentence structure", "Start Drills", Color(0xFF2563EB), onGrammarDrills)
         PracticeEntry("Pronunciation Lab", "Repeat after the speaker and compare your accent", "Start Lab", VistaGreen, onPronunciationLab)
         PracticeEntry("Dictation Notebook", "Hear a word, write it down, look up its meaning, and save it", "Open Notebook", Color(0xFFFF6B1A), onDictationNotebook)
+        PracticeEntry(
+            "Anki Flashcards",
+            "Spaced-repetition study, Anki CSV import/export, and OCR card capture",
+            "Open Flashcards",
+            Color(0xFF7C3AED),
+            onFlashcards,
+        )
     }
 }
 
@@ -150,6 +160,7 @@ private fun PracticeEntry(title: String, subtitle: String, button: String, color
 @Composable
 fun QuickReviewScreen(course: LanguageCourse, onBack: () -> Unit, onComplete: (Int, Int) -> Unit) {
     val context = LocalContext.current
+    val preferencesStore = remember(context) { PreferencesStore(context.applicationContext) }
     val base = SampleContent.practicePack(course.id).reviewWords
     var saved by remember(course.id) { mutableStateOf<List<SavedWord>>(emptyList()) }
     LaunchedEffect(course.id) { saved = SavedWordRepository.wordsForLanguage(context, course.id) }
@@ -193,10 +204,16 @@ fun QuickReviewScreen(course: LanguageCourse, onBack: () -> Unit, onComplete: (I
                         when {
                             !checked && selected != null -> {
                                 checked = true
-                                if (selected == word.term) score++
+                                if (selected == word.term) {
+                                    score++
+                                    SoundEffects.playCorrect(context, preferencesStore)
+                                } else {
+                                    SoundEffects.playIncorrect(context, preferencesStore)
+                                }
                             }
                             checked && index == words.lastIndex -> {
                                 finished = true
+                                SoundEffects.playSuccess(context, preferencesStore)
                                 onComplete(score, words.size)
                             }
                             checked -> {
@@ -231,6 +248,8 @@ private fun QuizCard(
     resultTitle: String,
     onComplete: (Int, Int) -> Unit,
 ) {
+    val context = LocalContext.current
+    val preferencesStore = remember(context) { PreferencesStore(context.applicationContext) }
     var index by rememberSaveable(course.id, resultTitle) { mutableStateOf(0) }
     var selected by rememberSaveable(course.id, resultTitle, index) { mutableStateOf<Int?>(null) }
     var checked by rememberSaveable(course.id, resultTitle, index) { mutableStateOf(false) }
@@ -261,9 +280,17 @@ private fun QuizCard(
                         when {
                             !checked && selected != null -> {
                                 checked = true
-                                if (selected == question.correctIndex) score++
+                                if (selected == question.correctIndex) {
+                                    score++
+                                    SoundEffects.playCorrect(context, preferencesStore)
+                                } else {
+                                    SoundEffects.playIncorrect(context, preferencesStore)
+                                }
                             }
-                            checked && index == questions.lastIndex -> finished = true
+                            checked && index == questions.lastIndex -> {
+                                finished = true
+                                SoundEffects.playSuccess(context, preferencesStore)
+                            }
                             checked -> {
                                 index++
                                 selected = null
@@ -278,19 +305,29 @@ private fun QuizCard(
 }
 
 @Composable
-fun PronunciationLabScreen(course: LanguageCourse, onBack: () -> Unit) {
+fun PronunciationLabScreen(
+    course: LanguageCourse,
+    preferencesStore: PreferencesStore,
+    onBack: () -> Unit,
+    onComplete: () -> Unit = {},
+) {
     val context = LocalContext.current
     val pack = SampleContent.practicePack(course.id)
     val phrases = pack.pronunciationPhrases
     var index by rememberSaveable(course.id) { mutableStateOf(0) }
     var heard by rememberSaveable(course.id, index) { mutableStateOf("") }
     var feedback by rememberSaveable(course.id, index) { mutableStateOf("Tap Listen, then repeat the phrase.") }
+    var bestScore by rememberSaveable(course.id, index) { mutableStateOf(0) }
+    var sessionHadGoodScore by rememberSaveable(course.id) { mutableStateOf(false) }
+    var completed by rememberSaveable(course.id) { mutableStateOf(false) }
+    var showResult by rememberSaveable(course.id) { mutableStateOf(false) }
     var tts by remember { mutableStateOf<TextToSpeech?>(null) }
-    DisposableEffect(context, pack.localeTag) {
+    DisposableEffect(context, pack.localeTag, preferencesStore.voiceSpeed) {
         lateinit var engine: TextToSpeech
         engine = TextToSpeech(context) {
             if (it == TextToSpeech.SUCCESS) {
                 engine.language = Locale.forLanguageTag(pack.localeTag)
+                engine.setSpeechRate(preferencesStore.speechRate())
                 tts = engine
             }
         }
@@ -302,6 +339,8 @@ fun PronunciationLabScreen(course: LanguageCourse, onBack: () -> Unit) {
         else {
             heard = text
             val score = pronunciationScore(phrases[index].phrase, text)
+            bestScore = max(bestScore, score)
+            if (score >= 70) sessionHadGoodScore = true
             feedback = if (score >= 80) "Excellent! $score% match." else "Good attempt — $score% match. Try again."
         }
     }
@@ -319,44 +358,97 @@ fun PronunciationLabScreen(course: LanguageCourse, onBack: () -> Unit) {
     ExerciseHeader("Pronunciation Lab", "Repeat after the speaker and compare your accent", onBack)
     GlassCard(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Badge("${index + 1}/${phrases.size}", course.accent.copy(alpha = 0.65f))
-            Text(phrase.phrase, style = MaterialTheme.typography.headlineSmall, color = TextPrimary)
-            BodyText(phrase.translation)
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                AeroButton(
-                    text = "Listen",
-                    onClick = { tts?.speak(phrase.phrase, TextToSpeech.QUEUE_FLUSH, null, "phrase-$index") },
-                    color = course.accent,
-                    leadingIcon = { Icon(Icons.AutoMirrored.Filled.VolumeUp, null) },
-                )
-                AeroButton(
-                    text = "Speak",
-                    onClick = {
-                        if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
-                            listen()
-                        } else permission.launch(Manifest.permission.RECORD_AUDIO)
-                    },
+            if (showResult) {
+                CardTitle("Lab complete")
+                Text(
+                    text = if (sessionHadGoodScore || completed) "Great session!" else "Keep practicing",
+                    style = MaterialTheme.typography.headlineSmall,
                     color = VistaGreen,
-                    leadingIcon = { Icon(Icons.Filled.Mic, null) },
+                )
+                BodyText(
+                    if (completed) {
+                        "You earned XP for strong pronunciation today."
+                    } else {
+                        "Reach about 70% match on a phrase to earn XP next time."
+                    },
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    AeroButton(
+                        text = "Retry",
+                        color = course.accent,
+                        onClick = {
+                            index = 0
+                            heard = ""
+                            bestScore = 0
+                            sessionHadGoodScore = false
+                            completed = false
+                            showResult = false
+                            feedback = "Tap Listen, then repeat the phrase."
+                        },
+                    )
+                    AeroButton("Back", onClick = onBack, color = Color(0xFF526777))
+                }
+            } else {
+                Badge("${index + 1}/${phrases.size}", course.accent.copy(alpha = 0.65f))
+                Text(phrase.phrase, style = MaterialTheme.typography.headlineSmall, color = TextPrimary)
+                BodyText(phrase.translation)
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    AeroButton(
+                        text = "Listen",
+                        onClick = {
+                            tts?.setSpeechRate(preferencesStore.speechRate())
+                            tts?.speak(phrase.phrase, TextToSpeech.QUEUE_FLUSH, null, "phrase-$index")
+                        },
+                        color = course.accent,
+                        leadingIcon = { Icon(Icons.AutoMirrored.Filled.VolumeUp, null) },
+                    )
+                    AeroButton(
+                        text = "Speak",
+                        onClick = {
+                            if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+                                listen()
+                            } else permission.launch(Manifest.permission.RECORD_AUDIO)
+                        },
+                        color = VistaGreen,
+                        leadingIcon = { Icon(Icons.Filled.Mic, null) },
+                    )
+                }
+                BodyText(feedback)
+                if (heard.isNotBlank()) BodyText("I heard: “$heard”", color = TextMuted)
+                AeroButton(
+                    text = if (index == phrases.lastIndex) "Finish" else "Next phrase",
+                    onClick = {
+                        val atLast = index == phrases.lastIndex
+                        val goodEnough = bestScore >= 70 || sessionHadGoodScore
+                        if (atLast) {
+                            if (goodEnough && !completed) {
+                                completed = true
+                                onComplete()
+                                SoundEffects.playSuccess(context, preferencesStore)
+                            }
+                            showResult = true
+                        } else {
+                            index++
+                            heard = ""
+                            bestScore = 0
+                            feedback = "Tap Listen, then repeat the phrase."
+                        }
+                    },
+                    color = course.accent,
                 )
             }
-            BodyText(feedback)
-            if (heard.isNotBlank()) BodyText("I heard: “$heard”", color = TextMuted)
-            AeroButton(
-                text = if (index == phrases.lastIndex) "Start over" else "Next phrase",
-                onClick = {
-                    index = (index + 1) % phrases.size
-                    heard = ""
-                    feedback = "Tap Listen, then repeat the phrase."
-                },
-                color = course.accent,
-            )
         }
     }
 }
 
 @Composable
-fun DictationNotebookScreen(course: LanguageCourse, onBack: () -> Unit, onReview: () -> Unit) {
+fun DictationNotebookScreen(
+    course: LanguageCourse,
+    preferencesStore: PreferencesStore,
+    onBack: () -> Unit,
+    onReview: () -> Unit,
+    onWordSaved: () -> Unit = {},
+) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val pack = SampleContent.practicePack(course.id)
@@ -370,25 +462,29 @@ fun DictationNotebookScreen(course: LanguageCourse, onBack: () -> Unit, onReview
     var saved by remember(course.id) { mutableStateOf<List<SavedWord>>(emptyList()) }
     var tts by remember { mutableStateOf<TextToSpeech?>(null) }
     val prompt = pack.reviewWords[promptIndex]
+    val offline = preferencesStore.offlineMode
 
     suspend fun refresh() { saved = SavedWordRepository.wordsForLanguage(context, course.id) }
     LaunchedEffect(course.id) { refresh() }
-    LaunchedEffect(course.id, word) {
+    LaunchedEffect(course.id, word, offline) {
         val query = word.trim()
         suggestions = if (query.length < 2) emptyList() else {
             delay(250)
             val local = dictionary.filter { it.term.startsWith(query, true) }.take(5)
-            if (local.isNotEmpty()) local else {
-                DictionaryLookupRepository.lookup(query, pack.localeTag.substringBefore('-'))
+            when {
+                local.isNotEmpty() -> local
+                offline -> emptyList()
+                else -> DictionaryLookupRepository.lookup(query, pack.localeTag.substringBefore('-'))
                     ?.let { listOf(VocabWord(query, it)) }.orEmpty()
             }
         }
     }
-    DisposableEffect(context, pack.localeTag) {
+    DisposableEffect(context, pack.localeTag, preferencesStore.voiceSpeed) {
         lateinit var engine: TextToSpeech
         engine = TextToSpeech(context) {
             if (it == TextToSpeech.SUCCESS) {
                 engine.language = Locale.forLanguageTag(pack.localeTag)
+                engine.setSpeechRate(preferencesStore.speechRate())
                 tts = engine
             }
         }
@@ -396,13 +492,19 @@ fun DictationNotebookScreen(course: LanguageCourse, onBack: () -> Unit, onReview
     }
 
     ExerciseHeader("Dictation Notebook", "Hear a word, write it down, look up its meaning, and save it", onBack)
+    if (offline) {
+        BodyText("Offline packs ready for Spanish/French/Japanese", color = VistaGreen)
+    }
     GlassCard(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Badge("Word ${promptIndex + 1}/${pack.reviewWords.size}", course.accent.copy(alpha = 0.65f))
             CardTitle("Listen and capture")
             AeroButton(
                 text = "Hear word",
-                onClick = { tts?.speak(prompt.term, TextToSpeech.QUEUE_FLUSH, null, "dictation-$promptIndex") },
+                onClick = {
+                    tts?.setSpeechRate(preferencesStore.speechRate())
+                    tts?.speak(prompt.term, TextToSpeech.QUEUE_FLUSH, null, "dictation-$promptIndex")
+                },
                 color = course.accent,
                 leadingIcon = { Icon(Icons.AutoMirrored.Filled.VolumeUp, null) },
             )
@@ -440,16 +542,24 @@ fun DictationNotebookScreen(course: LanguageCourse, onBack: () -> Unit, onReview
                             val localMeaning = dictionary
                                 .firstOrNull { it.term.equals(query, ignoreCase = true) }
                                 ?.meaning
-                            val result = localMeaning ?: DictionaryLookupRepository.lookup(
-                                query,
-                                pack.localeTag.substringBefore('-'),
-                            )
+                            val result = when {
+                                localMeaning != null -> localMeaning
+                                offline -> null
+                                else -> DictionaryLookupRepository.lookup(
+                                    query,
+                                    pack.localeTag.substringBefore('-'),
+                                )
+                            }
                             if (result != null) {
                                 meaning = result
                                 suggestions = emptyList()
                                 message = "Found: $query — $result"
                             } else {
-                                message = "No dictionary result found. You can enter the meaning yourself."
+                                message = if (offline) {
+                                    "Offline mode: no local match. Enter the meaning yourself."
+                                } else {
+                                    "No dictionary result found. You can enter the meaning yourself."
+                                }
                             }
                         }
                     }
@@ -470,6 +580,8 @@ fun DictationNotebookScreen(course: LanguageCourse, onBack: () -> Unit, onReview
                             CloudWordRepository.saveWord(course.id, course.name, word, meaning, example, "dictation_notebook")
                         }.isSuccess
                         refresh()
+                        onWordSaved()
+                        SoundEffects.playSuccess(context, preferencesStore)
                         message = if (cloudSaved) "Saved on this device and online." else {
                             "Saved on this device. Sign in from Google Tools to sync online."
                         }

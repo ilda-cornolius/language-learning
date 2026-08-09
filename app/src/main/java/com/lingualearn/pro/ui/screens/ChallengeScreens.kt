@@ -17,12 +17,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.lingualearn.pro.data.ExerciseQuestion
 import com.lingualearn.pro.data.LanguageCourse
+import com.lingualearn.pro.data.PreferencesStore
+import com.lingualearn.pro.data.ProgressState
 import com.lingualearn.pro.data.ProgressStore
 import com.lingualearn.pro.data.SampleContent
+import com.lingualearn.pro.data.SoundEffects
 import com.lingualearn.pro.data.VocabWord
 import com.lingualearn.pro.ui.components.AeroButton
 import com.lingualearn.pro.ui.components.AeroProgressBar
@@ -80,6 +83,28 @@ fun ChallengesScreen(
             color = VistaBlue,
             onStart = onGrammarSprint,
         )
+        PerfectWeekCard(progress)
+    }
+}
+
+@Composable
+private fun PerfectWeekCard(progress: ProgressState) {
+    val done = ProgressState.PERFECT_WEEK_ID in progress.completedChallengeIds
+    val days = progress.perfectWeekProgress
+    GlassCard(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                CardTitle("Perfect Week")
+                Badge(if (done) "Completed" else "1000 XP", if (done) VistaGreen else VistaAccent)
+            }
+            BodyText("Complete lessons 7 days in a row")
+            BodyText("$days / 7 days", color = TextMuted)
+            AeroProgressBar(days / 7f, VistaAccent)
+        }
     }
 }
 
@@ -112,6 +137,8 @@ private fun ChallengeEntry(
 
 @Composable
 fun SpeedRoundScreen(course: LanguageCourse, progressStore: ProgressStore, onBack: () -> Unit) {
+    val context = LocalContext.current
+    val preferencesStore = remember(context) { PreferencesStore(context.applicationContext) }
     var run by rememberSaveable(course.id) { mutableStateOf(0) }
     var index by rememberSaveable(course.id, run) { mutableStateOf(0) }
     var score by rememberSaveable(course.id, run) { mutableStateOf(0) }
@@ -126,8 +153,14 @@ fun SpeedRoundScreen(course: LanguageCourse, progressStore: ProgressStore, onBac
         if (finished) return
         finished = true
         progressStore.updateBestScore("$SPEED_ID:score", finalScore)
-        if (finalScore >= 12 && seconds > 0) {
-            progressStore.completeChallenge(SPEED_ID, 500, finalScore, "$SPEED_ID:score")
+        if (finalScore >= 12) {
+            progressStore.completeChallenge(
+                SPEED_ID,
+                500,
+                finalScore,
+                "$SPEED_ID:score",
+                courseId = course.id,
+            )
         }
     }
     LaunchedEffect(run, finished, seconds) {
@@ -143,10 +176,10 @@ fun SpeedRoundScreen(course: LanguageCourse, progressStore: ProgressStore, onBac
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             if (finished) {
                 ChallengeResult(
-                    success = score >= 12 && seconds > 0,
+                    success = score >= 12,
                     score = "$score / 20",
                     successText = "Speed mastered! 500 XP awarded on your first win.",
-                    failureText = if (seconds == 0) "Time expired. Reach 12 correct answers to win." else "Score 12 or more to win.",
+                    failureText = "Score 12 or more to win.",
                     onRetry = { run++ },
                     onBack = onBack,
                 )
@@ -158,9 +191,17 @@ fun SpeedRoundScreen(course: LanguageCourse, progressStore: ProgressStore, onBac
                 CardTitle(word.term)
                 speedOptions(words, index).forEach { option ->
                     ChallengeOption(option, course.accent) {
-                        val newScore = score + if (option == word.meaning) 1 else 0
+                        val correct = option == word.meaning
+                        if (correct) SoundEffects.playCorrect(context, preferencesStore)
+                        else SoundEffects.playIncorrect(context, preferencesStore)
+                        val newScore = score + if (correct) 1 else 0
                         score = newScore
-                        if (index == 19) finish(newScore) else index++
+                        if (index == 19) {
+                            if (newScore >= 12) SoundEffects.playSuccess(context, preferencesStore)
+                            finish(newScore)
+                        } else {
+                            index++
+                        }
                     }
                 }
             }
@@ -170,6 +211,8 @@ fun SpeedRoundScreen(course: LanguageCourse, progressStore: ProgressStore, onBac
 
 @Composable
 fun MemoryMatchScreen(course: LanguageCourse, progressStore: ProgressStore, onBack: () -> Unit) {
+    val context = LocalContext.current
+    val preferencesStore = remember(context) { PreferencesStore(context.applicationContext) }
     var run by rememberSaveable(course.id) { mutableStateOf(0) }
     val pairs = remember(course.id) { SampleContent.practicePack(course.id).reviewWords.take(6) }
     val cards = remember(course.id, run) {
@@ -178,16 +221,41 @@ fun MemoryMatchScreen(course: LanguageCourse, progressStore: ProgressStore, onBa
             .shuffled(Random(course.id.hashCode() + run))
     }
     var firstIndex by rememberSaveable(course.id, run) { mutableStateOf<Int?>(null) }
+    var secondIndex by rememberSaveable(course.id, run) { mutableStateOf<Int?>(null) }
     var matchedPairs by rememberSaveable(course.id, run) { mutableStateOf(setOf<Int>()) }
     var turns by rememberSaveable(course.id, run) { mutableStateOf(0) }
     var message by rememberSaveable(course.id, run) { mutableStateOf("Select a term, then its meaning.") }
+    var inputLocked by remember(course.id, run) { mutableStateOf(false) }
     val finished = matchedPairs.size == pairs.size
+
+    LaunchedEffect(secondIndex, firstIndex) {
+        val first = firstIndex
+        val second = secondIndex
+        if (first == null || second == null) return@LaunchedEffect
+        inputLocked = true
+        turns++
+        if (cards[first].pairId == cards[second].pairId) {
+            matchedPairs = matchedPairs + cards[first].pairId
+            message = "Match found!"
+            SoundEffects.playCorrect(context, preferencesStore)
+            firstIndex = null
+            secondIndex = null
+            inputLocked = false
+        } else {
+            message = "Not a match. Try again."
+            SoundEffects.playIncorrect(context, preferencesStore)
+            delay(600)
+            firstIndex = null
+            secondIndex = null
+            inputLocked = false
+        }
+    }
 
     LaunchedEffect(finished) {
         if (finished) {
             // Inverting turns lets the generic "highest score" store retain the fewest turns.
             progressStore.updateBestScore("$MEMORY_ID:turns-inverse", 10_000 - turns)
-            progressStore.completeChallenge(MEMORY_ID, 300, pairs.size)
+            progressStore.completeChallenge(MEMORY_ID, 300, pairs.size, courseId = course.id)
         }
     }
 
@@ -211,35 +279,33 @@ fun MemoryMatchScreen(course: LanguageCourse, progressStore: ProgressStore, onBa
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         row.forEach { card ->
                             val cardIndex = cards.indexOf(card)
-                            val selected = firstIndex == cardIndex
                             val matched = card.pairId in matchedPairs
+                            val faceUp = matched ||
+                                firstIndex == cardIndex ||
+                                secondIndex == cardIndex
                             GlassTile(
                                 modifier = Modifier.weight(1f),
                                 color = when {
                                     matched -> VistaGreen.copy(alpha = 0.45f)
-                                    selected -> course.accent.copy(alpha = 0.45f)
+                                    faceUp -> course.accent.copy(alpha = 0.45f)
                                     else -> Color(0x33FFFFFF)
                                 },
                                 onClick = {
-                                    if (matched) return@GlassTile
-                                    val first = firstIndex
-                                    if (first == null) {
+                                    if (matched || inputLocked || faceUp) return@GlassTile
+                                    if (firstIndex == null) {
                                         firstIndex = cardIndex
                                         message = "Now choose the matching card."
-                                    } else if (first != cardIndex) {
-                                        turns++
-                                        if (cards[first].pairId == card.pairId) {
-                                            matchedPairs = matchedPairs + card.pairId
-                                            message = "Match found!"
-                                        } else {
-                                            message = "Not a match. Try again."
-                                        }
-                                        firstIndex = null
+                                    } else if (secondIndex == null && firstIndex != cardIndex) {
+                                        secondIndex = cardIndex
                                     }
                                 },
                             ) {
                                 Text(
-                                    if (matched) "✓ ${card.label}" else card.label,
+                                    text = when {
+                                        matched -> "✓ ${card.label}"
+                                        faceUp -> card.label
+                                        else -> "?"
+                                    },
                                     color = TextPrimary,
                                     modifier = Modifier.fillMaxWidth().padding(14.dp),
                                 )
@@ -254,6 +320,8 @@ fun MemoryMatchScreen(course: LanguageCourse, progressStore: ProgressStore, onBa
 
 @Composable
 fun GrammarSprintScreen(course: LanguageCourse, progressStore: ProgressStore, onBack: () -> Unit) {
+    val context = LocalContext.current
+    val preferencesStore = remember(context) { PreferencesStore(context.applicationContext) }
     var run by rememberSaveable(course.id) { mutableStateOf(0) }
     val questions = remember(course.id) {
         val source = SampleContent.dailyGrammarLesson(course.id).questions +
@@ -270,7 +338,13 @@ fun GrammarSprintScreen(course: LanguageCourse, progressStore: ProgressStore, on
         finished = true
         progressStore.updateBestScore("$GRAMMAR_ID:score", finalScore)
         if (finalScore >= 4 && seconds > 0) {
-            progressStore.completeChallenge(GRAMMAR_ID, 400, finalScore, "$GRAMMAR_ID:score")
+            progressStore.completeChallenge(
+                GRAMMAR_ID,
+                400,
+                finalScore,
+                "$GRAMMAR_ID:score",
+                courseId = course.id,
+            )
         }
     }
     LaunchedEffect(run, finished, seconds) {
@@ -300,9 +374,17 @@ fun GrammarSprintScreen(course: LanguageCourse, progressStore: ProgressStore, on
                 CardTitle(question.prompt)
                 question.options.forEachIndexed { optionIndex, option ->
                     ChallengeOption(option, course.accent) {
-                        val newScore = score + if (optionIndex == question.correctIndex) 1 else 0
+                        val correct = optionIndex == question.correctIndex
+                        if (correct) SoundEffects.playCorrect(context, preferencesStore)
+                        else SoundEffects.playIncorrect(context, preferencesStore)
+                        val newScore = score + if (correct) 1 else 0
                         score = newScore
-                        if (index == questions.lastIndex) finish(newScore) else index++
+                        if (index == questions.lastIndex) {
+                            if (newScore >= 4) SoundEffects.playSuccess(context, preferencesStore)
+                            finish(newScore)
+                        } else {
+                            index++
+                        }
                     }
                 }
             }

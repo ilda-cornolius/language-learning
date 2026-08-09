@@ -12,6 +12,7 @@ import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SmartToy
+import androidx.compose.material.icons.filled.Style
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.ui.graphics.vector.ImageVector
 
@@ -40,13 +41,17 @@ enum class Destination(
     GrammarDrills("grammar-drills", "Grammar Drills", "Grammar Drills", Icons.Filled.School),
     PronunciationLab("pronunciation-lab", "Pronunciation Lab", "Pronunciation Lab", Icons.Filled.Headphones),
     DictationNotebook("dictation-notebook", "Dictation Notebook", "Dictation Notebook", Icons.Filled.Edit),
+    Flashcards("flashcards", "Anki Flashcards", "Flashcards", Icons.Filled.Style),
+    FlashcardStudy("flashcard-study", "Flashcard Study", "Study", Icons.Filled.Style),
+    FlashcardBrowse("flashcard-browse", "Browse Deck", "Browse", Icons.Filled.Style),
+    FlashcardOcr("flashcard-ocr", "OCR Flashcards", "OCR Cards", Icons.Filled.PhotoCamera),
     Challenges("challenges", "Weekly Challenges", "Challenges", Icons.Filled.EmojiEvents),
     SpeedRound("speed-round", "Speed Round", "Speed Round", Icons.Filled.EmojiEvents),
     MemoryMatch("memory-match", "Memory Match", "Memory Match", Icons.Filled.EmojiEvents),
     GrammarSprint("grammar-sprint", "Grammar Sprint", "Grammar Sprint", Icons.Filled.EmojiEvents);
 
     companion object {
-        val activities = listOf(Vocabulary, Conversation, Listening, Writing, Assistant)
+        val activities = listOf(Vocabulary, Conversation, Listening, Writing, Assistant, Flashcards)
         val social = listOf(Instagram, Google)
         val settings = listOf(Profile, Preferences)
         val toolbar = listOf(DailyLesson, Practice, Challenges)
@@ -76,6 +81,10 @@ enum class Destination(
             GrammarDrills -> "$languageName Grammar Drills"
             PronunciationLab -> "$languageName Pronunciation Lab"
             DictationNotebook -> "$languageName Dictation Notebook"
+            Flashcards -> "$languageName Anki Flashcards"
+            FlashcardStudy -> "$languageName Flashcard Study"
+            FlashcardBrowse -> "$languageName Browse Deck"
+            FlashcardOcr -> "$languageName OCR Flashcards"
             Challenges -> "$languageName Weekly Challenges"
             SpeedRound -> "$languageName Speed Round"
             MemoryMatch -> "$languageName Memory Match"

@@ -15,6 +15,10 @@ object CloudWordRepository {
     private val auth: FirebaseAuth by lazy { FirebaseAuth.getInstance() }
     private val firestore: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
 
+    @Volatile
+    var lastSyncAtMs: Long? = null
+        private set
+
     val isSignedIn: Boolean
         get() = auth.currentUser != null
 
@@ -36,6 +40,7 @@ object CloudWordRepository {
                 SetOptions.merge(),
             )
             .awaitResult()
+        markSynced()
     }
 
     suspend fun saveWord(
@@ -70,6 +75,11 @@ object CloudWordRepository {
                 SetOptions.merge(),
             )
             .awaitResult()
+        markSynced()
+    }
+
+    fun markSynced(atMs: Long = System.currentTimeMillis()) {
+        lastSyncAtMs = atMs
     }
 }
 

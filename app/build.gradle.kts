@@ -60,4 +60,5 @@ dependencies {
     implementation("com.google.firebase:firebase-appcheck-playintegrity")
     debugImplementation("com.google.firebase:firebase-appcheck-debug")
     implementation("com.google.android.gms:play-services-auth:21.4.0")
+    implementation("com.google.mlkit:text-recognition:16.0.1")
 }

@@ -1,5 +1,9 @@
 package com.lingualearn.pro.ui
 
+import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
+import android.speech.tts.TextToSpeech
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -38,6 +42,8 @@ import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -50,7 +56,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.lingualearn.pro.data.CloudWordRepository
+import com.lingualearn.pro.data.DailyReminderScheduler
 import com.lingualearn.pro.data.LanguageCourse
+import com.lingualearn.pro.data.PreferencesStore
 import com.lingualearn.pro.data.ProgressState
 import com.lingualearn.pro.data.ProgressStore
 import com.lingualearn.pro.data.SampleContent
@@ -64,6 +73,10 @@ import com.lingualearn.pro.ui.screens.ConversationScreen
 import com.lingualearn.pro.ui.screens.CourseDashboardScreen
 import com.lingualearn.pro.ui.screens.DailyGrammarLessonScreen
 import com.lingualearn.pro.ui.screens.DictationNotebookScreen
+import com.lingualearn.pro.ui.screens.FlashcardBrowseScreen
+import com.lingualearn.pro.ui.screens.FlashcardOcrScreen
+import com.lingualearn.pro.ui.screens.FlashcardStudyScreen
+import com.lingualearn.pro.ui.screens.FlashcardsHubScreen
 import com.lingualearn.pro.ui.screens.GoogleToolsScreen
 import com.lingualearn.pro.ui.screens.GrammarDrillsScreen
 import com.lingualearn.pro.ui.screens.InstagramScreen
@@ -90,22 +103,66 @@ import com.lingualearn.pro.ui.widgets.CalendarWidget
 import com.lingualearn.pro.ui.widgets.ClockWidget
 import com.lingualearn.pro.ui.widgets.DailyProgressWidget
 import com.lingualearn.pro.ui.widgets.DestinationWidget
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.util.Locale
+import java.util.concurrent.TimeUnit
 
 @Composable
 fun LinguaLearnApp() {
     val context = LocalContext.current
     val progressStore = remember(context) { ProgressStore(context.applicationContext) }
+    val preferencesStore = remember(context) { PreferencesStore(context.applicationContext) }
     val progress = progressStore.state
     var current by remember { mutableStateOf(Destination.Lesson) }
-    var activeLanguageId by remember { mutableStateOf("spanish") }
+    var activeLanguageId by remember { mutableStateOf(preferencesStore.activeLanguageId) }
     val activeCourse = SampleContent.courseById(activeLanguageId)
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
+    var lessonTts by remember { mutableStateOf<TextToSpeech?>(null) }
+    val localeTag = SampleContent.practicePack(activeCourse.id).localeTag
+
+    LaunchedEffect(Unit) {
+        if (preferencesStore.dailyReminders) {
+            DailyReminderScheduler.schedule(context)
+        }
+    }
+
+    DisposableEffect(context, localeTag, preferencesStore.voiceSpeed) {
+        lateinit var engine: TextToSpeech
+        engine = TextToSpeech(context) {
+            if (it == TextToSpeech.SUCCESS) {
+                engine.language = Locale.forLanguageTag(localeTag)
+                engine.setSpeechRate(preferencesStore.speechRate())
+                lessonTts = engine
+            }
+        }
+        onDispose {
+            engine.stop()
+            engine.shutdown()
+        }
+    }
 
     fun navigate(destination: Destination) {
-        Destination.courseIdFor(destination)?.let { activeLanguageId = it }
+        Destination.courseIdFor(destination)?.let { courseId ->
+            activeLanguageId = courseId
+            preferencesStore.updateActiveLanguageId(courseId)
+        }
         current = destination
+    }
+
+    fun playLessonAudio() {
+        val lesson = SampleContent.dailyGrammarLesson(activeCourse.id)
+        val example = lesson.examples.firstOrNull()?.phrase.orEmpty()
+        val spoken = buildString {
+            append(lesson.concept)
+            if (example.isNotBlank()) {
+                append(". ")
+                append(example)
+            }
+        }
+        lessonTts?.setSpeechRate(preferencesStore.speechRate())
+        lessonTts?.speak(spoken, TextToSpeech.QUEUE_FLUSH, null, "lesson-audio")
     }
 
     val screenTitle = Destination.titleFor(current, activeCourse.name)
@@ -123,11 +180,13 @@ fun LinguaLearnApp() {
                         onMenuClick = null,
                         showLessonActions = current == Destination.Lesson,
                         onLessonSettings = { current = Destination.Preferences },
+                        onLessonAudio = { playLessonAudio() },
                     )
                     Row(Modifier.weight(1f)) {
                         Sidebar(
                             current = current,
                             activeLanguageId = activeLanguageId,
+                            progressStore = progressStore,
                             onSelect = { navigate(it) },
                             modifier = Modifier
                                 .width(250.dp)
@@ -140,6 +199,7 @@ fun LinguaLearnApp() {
                                 current = current,
                                 activeCourse = activeCourse,
                                 progressStore = progressStore,
+                                preferencesStore = preferencesStore,
                                 onNavigate = { navigate(it) },
                                 showWidgets = false,
                                 modifier = Modifier.weight(1f),
@@ -168,6 +228,7 @@ fun LinguaLearnApp() {
                             Sidebar(
                                 current = current,
                                 activeLanguageId = activeLanguageId,
+                                progressStore = progressStore,
                                 onSelect = {
                                     navigate(it)
                                     scope.launch { drawerState.close() }
@@ -185,12 +246,14 @@ fun LinguaLearnApp() {
                             onMenuClick = { scope.launch { drawerState.open() } },
                             showLessonActions = current == Destination.Lesson,
                             onLessonSettings = { current = Destination.Preferences },
+                            onLessonAudio = { playLessonAudio() },
                         )
                         LanguageToolbar(current, progress) { navigate(it) }
                         ContentArea(
                             current = current,
                             activeCourse = activeCourse,
                             progressStore = progressStore,
+                            preferencesStore = preferencesStore,
                             onNavigate = { navigate(it) },
                             showWidgets = true,
                             modifier = Modifier.weight(1f),
@@ -209,6 +272,7 @@ private fun TitleBar(
     onMenuClick: (() -> Unit)?,
     showLessonActions: Boolean = false,
     onLessonSettings: () -> Unit = {},
+    onLessonAudio: () -> Unit = {},
 ) {
     Row(
         Modifier
@@ -252,7 +316,7 @@ private fun TitleBar(
             modifier = Modifier.weight(1f),
         )
         if (showLessonActions) {
-            IconButton(onClick = {}, modifier = Modifier.size(32.dp)) {
+            IconButton(onClick = onLessonAudio, modifier = Modifier.size(32.dp)) {
                 Icon(
                     Icons.AutoMirrored.Filled.VolumeUp,
                     contentDescription = "Play lesson audio",
@@ -276,6 +340,7 @@ private fun TitleBar(
 private fun Sidebar(
     current: Destination,
     activeLanguageId: String,
+    progressStore: ProgressStore,
     onSelect: (Destination) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -308,13 +373,14 @@ private fun Sidebar(
             SectionLabel("My Languages")
             SampleContent.courses.forEach { course ->
                 val destination = Destination.forCourse(course.id)
+                val pct = progressStore.courseProgress(course.id)
                 SidebarRow(
                     label = course.name,
                     selected = course.id == activeLanguageId,
                     onClick = { onSelect(destination) },
                     leading = { Text(course.flag, style = MaterialTheme.typography.bodyMedium) },
                     trailing = {
-                        Badge("${course.progress}%", course.accent.copy(alpha = 0.85f))
+                        Badge("$pct%", course.accent.copy(alpha = 0.85f))
                     },
                 )
             }
@@ -477,10 +543,24 @@ private fun ContentArea(
     current: Destination,
     activeCourse: LanguageCourse,
     progressStore: ProgressStore,
+    preferencesStore: PreferencesStore,
     onNavigate: (Destination) -> Unit,
     showWidgets: Boolean,
     modifier: Modifier = Modifier,
 ) {
+    val today = ProgressStore.todayKey()
+    val courseId = activeCourse.id
+
+    fun awardDaily(activity: String, xp: Int, lessonCompleted: Boolean = false) {
+        val awarded = progressStore.awardOnce(
+            awardId = "activity:$today:$courseId:$activity",
+            xp = xp,
+            lessonCompleted = lessonCompleted,
+            courseId = courseId,
+        )
+        if (awarded || lessonCompleted) progressStore.markDayActive()
+    }
+
     Column(
         modifier
             .fillMaxWidth()
@@ -493,25 +573,57 @@ private fun ContentArea(
                 course = activeCourse,
                 onComplete = {
                     progressStore.awardOnce(
-                        "lesson:${ProgressStore.todayKey()}:${activeCourse.id}:grammar",
+                        "lesson:$today:$courseId:grammar",
                         100,
                         lessonCompleted = true,
+                        courseId = courseId,
                     )
                     onNavigate(Destination.Practice)
                 },
             )
             Destination.Spanish, Destination.French, Destination.Japanese -> {
-                CourseDashboardScreen(activeCourse, progressStore.state)
+                CourseDashboardScreen(
+                    activeCourse,
+                    progressStore.state,
+                    progressStore,
+                    onNavigate = onNavigate,
+                )
             }
-            Destination.Vocabulary -> VocabularyScreen(activeCourse)
-            Destination.Conversation -> ConversationScreen(activeCourse)
-            Destination.Listening -> ListeningScreen(activeCourse)
-            Destination.Writing -> WritingScreen(activeCourse)
-            Destination.Assistant -> AssistantScreen(activeCourse)
-            Destination.Instagram -> InstagramScreen()
-            Destination.Google -> GoogleToolsScreen(activeCourse)
-            Destination.Profile -> ProfileScreen(progressStore.state)
-            Destination.Preferences -> PreferencesScreen()
+            Destination.Vocabulary -> VocabularyScreen(
+                course = activeCourse,
+                preferencesStore = preferencesStore,
+                onComplete = { awardDaily("vocabulary", 30) },
+            )
+            Destination.Conversation -> ConversationScreen(
+                course = activeCourse,
+                onComplete = { awardDaily("conversation", 50) },
+            )
+            Destination.Listening -> ListeningScreen(
+                course = activeCourse,
+                preferencesStore = preferencesStore,
+                onComplete = { awardDaily("listening", 40) },
+            )
+            Destination.Writing -> WritingScreen(
+                course = activeCourse,
+                preferencesStore = preferencesStore,
+                onComplete = { awardDaily("writing", 60) },
+            )
+            Destination.Assistant -> AssistantScreen(
+                course = activeCourse,
+                onFirstReply = { awardDaily("assistant", 40) },
+            )
+            Destination.Instagram -> InstagramScreen(activeCourse)
+            Destination.Google -> GoogleToolsScreen(
+                course = activeCourse,
+                onVoiceComplete = { awardDaily("google-voice", 20) },
+            )
+            Destination.Profile -> ProfileScreen(
+                progress = progressStore.state,
+                progressStore = progressStore,
+                preferencesStore = preferencesStore,
+                courseName = activeCourse.name,
+            )
+            Destination.Preferences -> PreferencesScreen(preferencesStore)
             Destination.DailyLesson -> DailyGrammarLessonScreen(
                 course = activeCourse,
                 onStart = { onNavigate(Destination.Lesson) },
@@ -521,34 +633,68 @@ private fun ContentArea(
                 onGrammarDrills = { onNavigate(Destination.GrammarDrills) },
                 onPronunciationLab = { onNavigate(Destination.PronunciationLab) },
                 onDictationNotebook = { onNavigate(Destination.DictationNotebook) },
+                onFlashcards = { onNavigate(Destination.Flashcards) },
+            )
+            Destination.Flashcards -> FlashcardsHubScreen(
+                course = activeCourse,
+                onStudy = { onNavigate(Destination.FlashcardStudy) },
+                onBrowse = { onNavigate(Destination.FlashcardBrowse) },
+                onOcr = { onNavigate(Destination.FlashcardOcr) },
+                onBack = { onNavigate(Destination.Practice) },
+            )
+            Destination.FlashcardStudy -> FlashcardStudyScreen(
+                course = activeCourse,
+                preferencesStore = preferencesStore,
+                onBack = { onNavigate(Destination.Flashcards) },
+                onSessionComplete = { reviews ->
+                    if (reviews >= 5) awardDaily("flashcards", 40)
+                },
+            )
+            Destination.FlashcardBrowse -> FlashcardBrowseScreen(
+                course = activeCourse,
+                onBack = { onNavigate(Destination.Flashcards) },
+            )
+            Destination.FlashcardOcr -> FlashcardOcrScreen(
+                course = activeCourse,
+                preferencesStore = preferencesStore,
+                onBack = { onNavigate(Destination.Flashcards) },
+                onComplete = { awardDaily("flashcard-ocr", 25) },
             )
             Destination.QuickReview -> QuickReviewScreen(
                 course = activeCourse,
                 onBack = { onNavigate(Destination.Practice) },
                 onComplete = { score, total ->
-                    val prefix = "activity:${ProgressStore.todayKey()}:${activeCourse.id}:quick-review"
-                    progressStore.awardOnce(prefix, 50)
-                    if (score == total) progressStore.awardOnce("$prefix:perfect", 25)
+                    val prefix = "activity:$today:$courseId:quick-review"
+                    if (progressStore.awardOnce(prefix, 50, courseId = courseId)) {
+                        progressStore.markDayActive()
+                    }
+                    if (score == total) progressStore.awardOnce("$prefix:perfect", 25, courseId = courseId)
                 },
             )
             Destination.GrammarDrills -> GrammarDrillsScreen(
                 course = activeCourse,
                 onBack = { onNavigate(Destination.Practice) },
                 onComplete = { score, total ->
-                    val prefix = "activity:${ProgressStore.todayKey()}:${activeCourse.id}:grammar-drills"
-                    progressStore.awardOnce(prefix, 50)
-                    if (score == total) progressStore.awardOnce("$prefix:perfect", 25)
+                    val prefix = "activity:$today:$courseId:grammar-drills"
+                    if (progressStore.awardOnce(prefix, 50, courseId = courseId)) {
+                        progressStore.markDayActive()
+                    }
+                    if (score == total) progressStore.awardOnce("$prefix:perfect", 25, courseId = courseId)
                     onNavigate(Destination.Practice)
                 },
             )
             Destination.PronunciationLab -> PronunciationLabScreen(
                 course = activeCourse,
+                preferencesStore = preferencesStore,
                 onBack = { onNavigate(Destination.Practice) },
+                onComplete = { awardDaily("pronunciation", 40) },
             )
             Destination.DictationNotebook -> DictationNotebookScreen(
                 course = activeCourse,
+                preferencesStore = preferencesStore,
                 onBack = { onNavigate(Destination.Practice) },
                 onReview = { onNavigate(Destination.QuickReview) },
+                onWordSaved = { awardDaily("dictation", 25) },
             )
             Destination.Challenges -> ChallengesScreen(
                 progressStore = progressStore,
@@ -582,6 +728,10 @@ private fun ContentArea(
                 current == Destination.GrammarDrills ||
                 current == Destination.PronunciationLab ||
                 current == Destination.DictationNotebook ||
+                current == Destination.Flashcards ||
+                current == Destination.FlashcardStudy ||
+                current == Destination.FlashcardBrowse ||
+                current == Destination.FlashcardOcr ||
                 current == Destination.Challenges ||
                 current == Destination.SpeedRound ||
                 current == Destination.MemoryMatch ||
@@ -598,6 +748,10 @@ private fun ContentArea(
                 current == Destination.GrammarDrills ||
                 current == Destination.PronunciationLab ||
                 current == Destination.DictationNotebook ||
+                current == Destination.Flashcards ||
+                current == Destination.FlashcardStudy ||
+                current == Destination.FlashcardBrowse ||
+                current == Destination.FlashcardOcr ||
                 current == Destination.Challenges ||
                 current == Destination.SpeedRound ||
                 current == Destination.MemoryMatch ||
@@ -620,7 +774,11 @@ private fun ContentArea(
             if (current != Destination.Challenges &&
                 current != Destination.SpeedRound &&
                 current != Destination.MemoryMatch &&
-                current != Destination.GrammarSprint
+                current != Destination.GrammarSprint &&
+                current != Destination.Flashcards &&
+                current != Destination.FlashcardStudy &&
+                current != Destination.FlashcardBrowse &&
+                current != Destination.FlashcardOcr
             ) {
                 DestinationWidget()
             }
@@ -638,6 +796,10 @@ private fun WidgetsPanel(current: Destination, progress: ProgressState, modifier
         current == Destination.GrammarDrills ||
         current == Destination.PronunciationLab ||
         current == Destination.DictationNotebook ||
+        current == Destination.Flashcards ||
+        current == Destination.FlashcardStudy ||
+        current == Destination.FlashcardBrowse ||
+        current == Destination.FlashcardOcr ||
         current == Destination.Challenges ||
         current == Destination.SpeedRound ||
         current == Destination.MemoryMatch ||
@@ -654,6 +816,10 @@ private fun WidgetsPanel(current: Destination, progress: ProgressState, modifier
         current == Destination.GrammarDrills ||
         current == Destination.PronunciationLab ||
         current == Destination.DictationNotebook ||
+        current == Destination.Flashcards ||
+        current == Destination.FlashcardStudy ||
+        current == Destination.FlashcardBrowse ||
+        current == Destination.FlashcardOcr ||
         current == Destination.Challenges ||
         current == Destination.SpeedRound ||
         current == Destination.MemoryMatch ||
@@ -675,7 +841,11 @@ private fun WidgetsPanel(current: Destination, progress: ProgressState, modifier
         if (current != Destination.Challenges &&
             current != Destination.SpeedRound &&
             current != Destination.MemoryMatch &&
-            current != Destination.GrammarSprint
+            current != Destination.GrammarSprint &&
+            current != Destination.Flashcards &&
+            current != Destination.FlashcardStudy &&
+            current != Destination.FlashcardBrowse &&
+            current != Destination.FlashcardOcr
         ) {
             DestinationWidget()
         }
@@ -684,6 +854,18 @@ private fun WidgetsPanel(current: Destination, progress: ProgressState, modifier
 
 @Composable
 private fun StatusBar() {
+    val context = LocalContext.current
+    var online by remember { mutableStateOf(isNetworkOnline(context)) }
+    var lastSyncLabel by remember { mutableStateOf(formatLastSync(CloudWordRepository.lastSyncAtMs)) }
+
+    LaunchedEffect(Unit) {
+        while (true) {
+            online = isNetworkOnline(context)
+            lastSyncLabel = formatLastSync(CloudWordRepository.lastSyncAtMs)
+            delay(5_000)
+        }
+    }
+
     Row(
         Modifier
             .fillMaxWidth()
@@ -696,13 +878,31 @@ private fun StatusBar() {
             Icon(
                 Icons.Filled.Circle,
                 contentDescription = null,
-                tint = VistaGreen,
+                tint = if (online) VistaGreen else Color(0xFFB63A3A),
                 modifier = Modifier.size(8.dp),
             )
-            StatusText("Online", Modifier.padding(start = 6.dp))
+            StatusText(if (online) "Online" else "Offline", Modifier.padding(start = 6.dp))
             StatusText("Version 2.3.1", Modifier.padding(start = 14.dp))
         }
-        StatusText("Last sync: 2 min ago")
+        StatusText(lastSyncLabel)
+    }
+}
+
+private fun isNetworkOnline(context: Context): Boolean {
+    val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+        ?: return false
+    val network = cm.activeNetwork ?: return false
+    val caps = cm.getNetworkCapabilities(network) ?: return false
+    return caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+}
+
+private fun formatLastSync(atMs: Long?): String {
+    if (atMs == null) return "Not synced yet"
+    val minutes = TimeUnit.MILLISECONDS.toMinutes(System.currentTimeMillis() - atMs)
+    return when {
+        minutes < 1 -> "Last sync: just now"
+        minutes < 60 -> "Last sync: $minutes min ago"
+        else -> "Last sync: ${minutes / 60}h ago"
     }
 }
 
