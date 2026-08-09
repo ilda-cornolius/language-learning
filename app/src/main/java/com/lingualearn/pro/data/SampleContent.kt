@@ -48,6 +48,36 @@ data class Challenge(
     val progressLabel: String? = null,
 )
 
+data class GrammarExample(
+    val phrase: String,
+    val translation: String,
+)
+
+data class ExerciseQuestion(
+    val prompt: String,
+    val options: List<String>,
+    val correctIndex: Int,
+    val explanation: String,
+)
+
+data class DailyGrammarLesson(
+    val number: Int,
+    val title: String,
+    val subtitle: String,
+    val level: String,
+    val concept: String,
+    val rule: String,
+    val examples: List<GrammarExample>,
+    val questions: List<ExerciseQuestion>,
+)
+
+data class PracticePack(
+    val reviewWords: List<VocabWord>,
+    val grammarQuestions: List<ExerciseQuestion>,
+    val pronunciationPhrases: List<GrammarExample>,
+    val localeTag: String,
+)
+
 object SampleContent {
 
     val courses = listOf(
@@ -184,6 +214,184 @@ object SampleContent {
             tutorReplies = spanishTutorReplies,
             conversationNote = "Practice these scenarios in Spanish",
         )
+    }
+
+    fun dailyGrammarLesson(courseId: String): DailyGrammarLesson = when (courseId) {
+        "french" -> DailyGrammarLesson(
+            number = 8,
+            title = "Using avoir in the present tense",
+            subtitle = "Learn how to describe what you have and talk about age in French",
+            level = "Beginner",
+            concept = "The verb avoir means “to have.” French also uses it in expressions where English uses “to be,” such as age.",
+            rule = "Conjugate avoir to match the subject: j’ai, tu as, il/elle a, nous avons, vous avez, ils/elles ont.",
+            examples = listOf(
+                GrammarExample("J’ai un livre.", "I have a book."),
+                GrammarExample("Elle a vingt ans.", "She is twenty years old."),
+                GrammarExample("Nous avons deux chiens.", "We have two dogs."),
+            ),
+            questions = listOf(
+                ExerciseQuestion(
+                    "Choose the correct form: Je ___ une voiture.",
+                    listOf("ai", "as", "a"),
+                    0,
+                    "Je uses j’ai: J’ai une voiture.",
+                ),
+                ExerciseQuestion(
+                    "Choose the correct form: Nous ___ un cours aujourd’hui.",
+                    listOf("avez", "avons", "ont"),
+                    1,
+                    "Nous uses avons.",
+                ),
+                ExerciseQuestion(
+                    "How do you say “She is eighteen years old”?",
+                    listOf("Elle est dix-huit ans.", "Elle a dix-huit ans.", "Elle ont dix-huit ans."),
+                    1,
+                    "French expresses age with avoir: Elle a dix-huit ans.",
+                ),
+            ),
+        )
+        "japanese" -> DailyGrammarLesson(
+            number = 6,
+            title = "Building sentences with は",
+            subtitle = "Learn how the topic particle は organizes a basic Japanese sentence",
+            level = "Beginner",
+            concept = "The particle は (pronounced wa) marks what the sentence is about. It follows the topic.",
+            rule = "Use: topic + は + information + です. The particle is written は but pronounced “wa.”",
+            examples = listOf(
+                GrammarExample("わたしは学生です。", "I am a student."),
+                GrammarExample("これは本です。", "This is a book."),
+                GrammarExample("田中さんは先生です。", "Mr./Ms. Tanaka is a teacher."),
+            ),
+            questions = listOf(
+                ExerciseQuestion(
+                    "Choose the topic particle: わたし ___ 学生です。",
+                    listOf("を", "は", "に"),
+                    1,
+                    "は marks わたし as the topic.",
+                ),
+                ExerciseQuestion(
+                    "What is the spoken pronunciation of は when it is a particle?",
+                    listOf("ha", "wa", "ba"),
+                    1,
+                    "The topic particle は is pronounced “wa.”",
+                ),
+                ExerciseQuestion(
+                    "Choose the best translation: これは本です。",
+                    listOf("This is a book.", "That is a teacher.", "I read a book."),
+                    0,
+                    "これ means “this,” and 本 means “book.”",
+                ),
+            ),
+        )
+        else -> DailyGrammarLesson(
+            number = 12,
+            title = "Talking about completed actions",
+            subtitle = "Learn how to use the Spanish preterite for actions completed in the past",
+            level = "Intermediate",
+            concept = "The preterite describes actions that started and finished at a specific time in the past.",
+            rule = "Regular -ar verbs use é, aste, ó, amos, aron. Regular -er/-ir verbs use í, iste, ió, imos, ieron.",
+            examples = listOf(
+                GrammarExample("Ayer hablé con Ana.", "Yesterday I spoke with Ana."),
+                GrammarExample("Comimos en un restaurante.", "We ate at a restaurant."),
+                GrammarExample("Ellos vivieron en Madrid.", "They lived in Madrid."),
+            ),
+            questions = listOf(
+                ExerciseQuestion(
+                    "Complete the sentence: Ayer yo ___ con María.",
+                    listOf("hablo", "hablé", "hablaré"),
+                    1,
+                    "Hablé is the first-person preterite form of hablar.",
+                ),
+                ExerciseQuestion(
+                    "Choose the completed past action.",
+                    listOf("Comemos ahora.", "Comeremos mañana.", "Comimos anoche."),
+                    2,
+                    "Anoche signals a completed past event, so use comimos.",
+                ),
+                ExerciseQuestion(
+                    "Complete: Ellos ___ la película ayer.",
+                    listOf("vieron", "ven", "verán"),
+                    0,
+                    "Vieron is the third-person plural preterite of ver.",
+                ),
+            ),
+        )
+    }
+
+    fun practicePack(courseId: String): PracticePack {
+        val lesson = dailyGrammarLesson(courseId)
+        val activity = activityPack(courseId)
+        val phrases = when (courseId) {
+            "french" -> listOf(
+                GrammarExample("Bonjour, comment allez-vous ?", "Hello, how are you?"),
+                GrammarExample("J’ai passé une bonne journée.", "I had a good day."),
+                GrammarExample("Je voudrais un café, s’il vous plaît.", "I would like a coffee, please."),
+            )
+            "japanese" -> listOf(
+                GrammarExample("こんにちは。お元気ですか。", "Hello. How are you?"),
+                GrammarExample("わたしは日本語を勉強しています。", "I am studying Japanese."),
+                GrammarExample("コーヒーをお願いします。", "Coffee, please."),
+            )
+            else -> listOf(
+                GrammarExample("Hola, ¿cómo estás?", "Hello, how are you?"),
+                GrammarExample("Ayer fui al cine con mis amigos.", "Yesterday I went to the movies with my friends."),
+                GrammarExample("Me gustaría un café, por favor.", "I would like a coffee, please."),
+            )
+        }
+        return PracticePack(
+            reviewWords = activity.vocabulary.take(6),
+            grammarQuestions = lesson.questions,
+            pronunciationPhrases = phrases,
+            localeTag = when (courseId) {
+                "french" -> "fr-FR"
+                "japanese" -> "ja-JP"
+                else -> "es-ES"
+            },
+        )
+    }
+
+    fun dictionaryWords(courseId: String): List<VocabWord> {
+        val common = when (courseId) {
+            "french" -> listOf(
+                VocabWord("bonjour", "hello"),
+                VocabWord("merci", "thank you"),
+                VocabWord("un", "one"),
+                VocabWord("deux", "two"),
+                VocabWord("trois", "three"),
+                VocabWord("ami", "friend"),
+                VocabWord("école", "school"),
+                VocabWord("manger", "to eat"),
+                VocabWord("parler", "to speak"),
+                VocabWord("aujourd’hui", "today"),
+            )
+            "japanese" -> listOf(
+                VocabWord("こんにちは", "hello"),
+                VocabWord("ありがとう", "thank you"),
+                VocabWord("いち", "one"),
+                VocabWord("に", "two"),
+                VocabWord("さん", "three"),
+                VocabWord("ともだち", "friend"),
+                VocabWord("がっこう", "school"),
+                VocabWord("たべる", "to eat"),
+                VocabWord("はなす", "to speak"),
+                VocabWord("きょう", "today"),
+            )
+            else -> listOf(
+                VocabWord("hola", "hello"),
+                VocabWord("gracias", "thank you"),
+                VocabWord("uno", "one"),
+                VocabWord("dos", "two"),
+                VocabWord("tres", "three"),
+                VocabWord("amigo", "friend"),
+                VocabWord("escuela", "school"),
+                VocabWord("comer", "to eat"),
+                VocabWord("hablar", "to speak"),
+                VocabWord("hoy", "today"),
+            )
+        }
+        return (activityPack(courseId).vocabulary + common)
+            .distinctBy { it.term.lowercase() }
+            .sortedBy { it.term.lowercase() }
     }
 
     fun courseById(id: String): LanguageCourse =

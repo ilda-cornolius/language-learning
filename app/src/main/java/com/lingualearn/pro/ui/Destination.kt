@@ -36,6 +36,10 @@ enum class Destination(
     Preferences("preferences", "Preferences", "Preferences", Icons.Filled.Settings),
     DailyLesson("daily-lesson", "Today's Spanish Lesson", "Daily Lesson", Icons.Filled.School),
     Practice("practice", "Practice Exercises", "Practice", Icons.Filled.FitnessCenter),
+    QuickReview("quick-review", "Quick Review", "Quick Review", Icons.Filled.Book),
+    GrammarDrills("grammar-drills", "Grammar Drills", "Grammar Drills", Icons.Filled.School),
+    PronunciationLab("pronunciation-lab", "Pronunciation Lab", "Pronunciation Lab", Icons.Filled.Headphones),
+    DictationNotebook("dictation-notebook", "Dictation Notebook", "Dictation Notebook", Icons.Filled.Edit),
     Challenges("challenges", "Weekly Challenges", "Challenges", Icons.Filled.EmojiEvents);
 
     companion object {
@@ -65,8 +69,12 @@ enum class Destination(
             Assistant -> "$languageName AI Tutor"
             DailyLesson -> "Today's $languageName Lesson"
             Practice -> "$languageName Practice Exercises"
+            QuickReview -> "$languageName Quick Review"
+            GrammarDrills -> "$languageName Grammar Drills"
+            PronunciationLab -> "$languageName Pronunciation Lab"
+            DictationNotebook -> "$languageName Dictation Notebook"
             Challenges -> "$languageName Weekly Challenges"
-            Lesson -> "$languageName Lesson 12: Everyday Conversations"
+            Lesson -> "$languageName Grammar Lesson"
             else -> destination.title
         }
     }

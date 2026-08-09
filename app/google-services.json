@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "693107596740",
+    "project_id": "language-learning-4cc38",
+    "storage_bucket": "language-learning-4cc38.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:693107596740:android:0f845ffdeef2fbcaa8d891",
+        "android_client_info": {
+          "package_name": "com.lingualearn.pro"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "693107596740-f5arvnipn9j6s3j58j00g7j4a292mtgc.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.lingualearn.pro",
+            "certificate_hash": "4473499b15c4a6b67d354a4bc34e40b4d017e88f"
+          }
+        },
+        {
+          "client_id": "693107596740-3s2ur789mvqbjn688vhqqkp3r490arvh.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAjNSFVtMzrD_JXcVZK81xdUYyUbCN__VU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "693107596740-3s2ur789mvqbjn688vhqqkp3r490arvh.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,5 +1,6 @@
 package com.lingualearn.pro.ui.screens
 
+import android.util.Log
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -31,10 +32,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -44,6 +45,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.lingualearn.pro.data.AiTutorRepository
 import com.lingualearn.pro.data.LanguageCourse
 import com.lingualearn.pro.data.SampleContent
 import com.lingualearn.pro.ui.components.AeroButton
@@ -59,6 +61,7 @@ import com.lingualearn.pro.ui.theme.VistaAccent
 import com.lingualearn.pro.ui.theme.VistaBlue
 import com.lingualearn.pro.ui.theme.VistaGreen
 import com.lingualearn.pro.ui.theme.VistaTeal
+import kotlinx.coroutines.launch
 
 @Composable
 fun VocabularyScreen(course: LanguageCourse) {
@@ -242,8 +245,12 @@ fun AssistantScreen(course: LanguageCourse) {
         messages.add(ChatMessage(pack.tutorGreeting, fromUser = false))
     }
     var draft by rememberSaveable(course.id) { mutableStateOf("") }
-    var replyIndex by remember(course.id) { mutableIntStateOf(0) }
+    var isReplying by remember(course.id) { mutableStateOf(false) }
     val scrollState = rememberScrollState()
+    val scope = rememberCoroutineScope()
+    LaunchedEffect(messages.size, isReplying) {
+        scrollState.animateScrollTo(scrollState.maxValue)
+    }
 
     GlassCard(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -277,6 +284,19 @@ fun AssistantScreen(course: LanguageCourse) {
                             }
                         }
                     }
+                    if (isReplying) {
+                        GlassTile(
+                            color = VistaTeal.copy(alpha = 0.3f),
+                            shape = RoundedCornerShape(12.dp),
+                        ) {
+                            Text(
+                                text = "Thinking…",
+                                color = TextMuted,
+                                style = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier.padding(12.dp),
+                            )
+                        }
+                    }
                 }
             }
 
@@ -289,19 +309,29 @@ fun AssistantScreen(course: LanguageCourse) {
                 )
                 Spacer(Modifier.size(8.dp))
                 AeroButton(
-                    text = "Send",
+                    text = if (isReplying) "Thinking…" else "Send",
                     color = course.accent,
                     onClick = {
-                        if (draft.isNotBlank()) {
-                            messages.add(ChatMessage(draft, fromUser = true))
-                            messages.add(
-                                ChatMessage(
-                                    pack.tutorReplies[replyIndex % pack.tutorReplies.size],
-                                    fromUser = false,
-                                )
-                            )
-                            replyIndex++
+                        if (draft.isNotBlank() && !isReplying) {
+                            val question = draft.trim()
+                            val history = messages.map { it.fromUser to it.text }
+                            messages.add(ChatMessage(question, fromUser = true))
                             draft = ""
+                            isReplying = true
+                            scope.launch {
+                                val response = runCatching {
+                                    AiTutorRepository.reply(
+                                        course = course,
+                                        conversation = history,
+                                        userMessage = question,
+                                    )
+                                }.getOrElse {
+                                    Log.e("AiTutor", "Gemini request failed", it)
+                                    "I couldn't reach the AI tutor right now. Please check that Firebase AI Logic is enabled, then try again."
+                                }
+                                messages.add(ChatMessage(response, fromUser = false))
+                                isReplying = false
+                            }
                         }
                     },
                     leadingIcon = {

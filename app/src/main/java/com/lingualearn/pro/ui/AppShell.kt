@@ -59,14 +59,18 @@ import com.lingualearn.pro.ui.screens.AssistantScreen
 import com.lingualearn.pro.ui.screens.ChallengesScreen
 import com.lingualearn.pro.ui.screens.ConversationScreen
 import com.lingualearn.pro.ui.screens.CourseDashboardScreen
-import com.lingualearn.pro.ui.screens.DailyLessonScreen
+import com.lingualearn.pro.ui.screens.DailyGrammarLessonScreen
+import com.lingualearn.pro.ui.screens.DictationNotebookScreen
 import com.lingualearn.pro.ui.screens.GoogleToolsScreen
+import com.lingualearn.pro.ui.screens.GrammarDrillsScreen
 import com.lingualearn.pro.ui.screens.InstagramScreen
-import com.lingualearn.pro.ui.screens.LessonScreen
+import com.lingualearn.pro.ui.screens.GrammarLessonScreen
 import com.lingualearn.pro.ui.screens.ListeningScreen
-import com.lingualearn.pro.ui.screens.PracticeScreen
+import com.lingualearn.pro.ui.screens.PracticeHubScreen
 import com.lingualearn.pro.ui.screens.PreferencesScreen
 import com.lingualearn.pro.ui.screens.ProfileScreen
+import com.lingualearn.pro.ui.screens.PronunciationLabScreen
+import com.lingualearn.pro.ui.screens.QuickReviewScreen
 import com.lingualearn.pro.ui.screens.VocabularyScreen
 import com.lingualearn.pro.ui.screens.WritingScreen
 import com.lingualearn.pro.ui.theme.GlassTileStrong
@@ -468,7 +472,10 @@ private fun ContentArea(
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         when (current) {
-            Destination.Lesson -> LessonScreen(onCheck = { onNavigate(Destination.Practice) })
+            Destination.Lesson -> GrammarLessonScreen(
+                course = activeCourse,
+                onComplete = { onNavigate(Destination.Practice) },
+            )
             Destination.Spanish, Destination.French, Destination.Japanese -> {
                 CourseDashboardScreen(activeCourse)
             }
@@ -478,11 +485,36 @@ private fun ContentArea(
             Destination.Writing -> WritingScreen(activeCourse)
             Destination.Assistant -> AssistantScreen(activeCourse)
             Destination.Instagram -> InstagramScreen()
-            Destination.Google -> GoogleToolsScreen()
+            Destination.Google -> GoogleToolsScreen(activeCourse)
             Destination.Profile -> ProfileScreen()
             Destination.Preferences -> PreferencesScreen()
-            Destination.DailyLesson -> DailyLessonScreen(onStart = { onNavigate(Destination.Lesson) })
-            Destination.Practice -> PracticeScreen()
+            Destination.DailyLesson -> DailyGrammarLessonScreen(
+                course = activeCourse,
+                onStart = { onNavigate(Destination.Lesson) },
+            )
+            Destination.Practice -> PracticeHubScreen(
+                onQuickReview = { onNavigate(Destination.QuickReview) },
+                onGrammarDrills = { onNavigate(Destination.GrammarDrills) },
+                onPronunciationLab = { onNavigate(Destination.PronunciationLab) },
+                onDictationNotebook = { onNavigate(Destination.DictationNotebook) },
+            )
+            Destination.QuickReview -> QuickReviewScreen(
+                course = activeCourse,
+                onBack = { onNavigate(Destination.Practice) },
+            )
+            Destination.GrammarDrills -> GrammarDrillsScreen(
+                course = activeCourse,
+                onBack = { onNavigate(Destination.Practice) },
+            )
+            Destination.PronunciationLab -> PronunciationLabScreen(
+                course = activeCourse,
+                onBack = { onNavigate(Destination.Practice) },
+            )
+            Destination.DictationNotebook -> DictationNotebookScreen(
+                course = activeCourse,
+                onBack = { onNavigate(Destination.Practice) },
+                onReview = { onNavigate(Destination.QuickReview) },
+            )
             Destination.Challenges -> ChallengesScreen()
         }
 
@@ -491,6 +523,10 @@ private fun ContentArea(
                 current == Destination.French ||
                 current == Destination.Japanese
             val hideCalendarClock = current == Destination.Practice ||
+                current == Destination.QuickReview ||
+                current == Destination.GrammarDrills ||
+                current == Destination.PronunciationLab ||
+                current == Destination.DictationNotebook ||
                 current == Destination.Challenges ||
                 current == Destination.DailyLesson ||
                 current == Destination.Assistant ||
@@ -500,6 +536,10 @@ private fun ContentArea(
                 current == Destination.Preferences ||
                 isCourseDashboard
             val hideDailyProgress = current == Destination.Practice ||
+                current == Destination.QuickReview ||
+                current == Destination.GrammarDrills ||
+                current == Destination.PronunciationLab ||
+                current == Destination.DictationNotebook ||
                 current == Destination.Challenges ||
                 current == Destination.DailyLesson ||
                 current == Destination.Assistant ||
@@ -529,6 +569,10 @@ private fun WidgetsPanel(current: Destination, modifier: Modifier = Modifier) {
         current == Destination.French ||
         current == Destination.Japanese
     val hideCalendarClock = current == Destination.Practice ||
+        current == Destination.QuickReview ||
+        current == Destination.GrammarDrills ||
+        current == Destination.PronunciationLab ||
+        current == Destination.DictationNotebook ||
         current == Destination.Challenges ||
         current == Destination.DailyLesson ||
         current == Destination.Assistant ||
@@ -538,6 +582,10 @@ private fun WidgetsPanel(current: Destination, modifier: Modifier = Modifier) {
         current == Destination.Preferences ||
         isCourseDashboard
     val hideDailyProgress = current == Destination.Practice ||
+        current == Destination.QuickReview ||
+        current == Destination.GrammarDrills ||
+        current == Destination.PronunciationLab ||
+        current == Destination.DictationNotebook ||
         current == Destination.Challenges ||
         current == Destination.DailyLesson ||
         current == Destination.Assistant ||
