@@ -39,6 +39,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import com.lingualearn.pro.data.CloudWordRepository
 import com.lingualearn.pro.data.DictionaryLookupRepository
@@ -491,7 +492,12 @@ fun DictationNotebookScreen(
         onDispose { engine.shutdown() }
     }
 
-    ExerciseHeader("Dictation Notebook", "Hear a word, write it down, look up its meaning, and save it", onBack)
+    ExerciseHeader(
+        title = "Dictation Notebook",
+        subtitle = "Hear a word, write it down, look up its meaning, and save it",
+        onBack = onBack,
+        largeText = true,
+    )
     if (offline) {
         BodyText("Offline packs ready for Spanish/French/Japanese", color = VistaGreen)
     }
@@ -612,11 +618,37 @@ fun DictationNotebookScreen(
 }
 
 @Composable
-private fun ExerciseHeader(title: String, subtitle: String, onBack: () -> Unit, backInside: Boolean = false) {
+private fun ExerciseHeader(
+    title: String,
+    subtitle: String,
+    onBack: () -> Unit,
+    backInside: Boolean = false,
+    largeText: Boolean = false,
+) {
+    val titleBlock: @Composable () -> Unit = {
+        if (largeText) {
+            Text(
+                text = title,
+                color = TextPrimary,
+                fontWeight = FontWeight.Bold,
+                fontSize = 30.sp,
+                lineHeight = 36.sp,
+            )
+            Text(
+                text = subtitle,
+                color = TextMuted,
+                fontSize = 18.sp,
+                lineHeight = 24.sp,
+            )
+        } else {
+            CardTitle(title)
+            BodyText(subtitle)
+        }
+    }
     if (backInside) {
         GlassCard(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                CardTitle(title); BodyText(subtitle)
+                titleBlock()
                 BackButton(onBack)
             }
         }
@@ -624,7 +656,12 @@ private fun ExerciseHeader(title: String, subtitle: String, onBack: () -> Unit, 
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             BackButton(onBack)
             GlassCard(Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(16.dp)) { CardTitle(title); BodyText(subtitle) }
+                Column(
+                    Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    titleBlock()
+                }
             }
         }
     }

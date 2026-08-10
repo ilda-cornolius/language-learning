@@ -42,7 +42,7 @@ import com.lingualearn.pro.ui.components.CardTitle
 import com.lingualearn.pro.ui.components.GlassCard
 import com.lingualearn.pro.ui.components.GlassTextField
 import com.lingualearn.pro.ui.components.GlassTile
-import com.lingualearn.pro.ui.components.InitialsAvatar
+import com.lingualearn.pro.ui.components.ProfileAvatar
 import com.lingualearn.pro.ui.theme.TextMuted
 import com.lingualearn.pro.ui.theme.TextPrimary
 import com.lingualearn.pro.ui.theme.VistaAccent
@@ -64,10 +64,13 @@ fun ProfileScreen(
     }
     val googleName = CloudWordRepository.userDisplayName
     val googleEmail = CloudWordRepository.userEmail
+    val googlePhotoUrl = CloudWordRepository.userPhotoUrl
+    val avatarName = googleName ?: preferencesStore.displayName
     val googleSignInClient = remember(context) {
         val options = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
             .requestIdToken(context.getString(R.string.default_web_client_id))
             .requestEmail()
+            .requestProfile()
             .build()
         GoogleSignIn.getClient(context, options)
     }
@@ -76,9 +79,10 @@ fun ProfileScreen(
         GlassCard(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    InitialsAvatar(
-                        googleName ?: preferencesStore.displayName,
-                        72.dp,
+                    ProfileAvatar(
+                        name = avatarName,
+                        photoUrl = googlePhotoUrl,
+                        size = 72.dp,
                     )
                     Column(Modifier.padding(start = 16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         if (editing) {
@@ -108,7 +112,7 @@ fun ProfileScreen(
                             }
                         } else {
                             Text(
-                                text = googleName ?: preferencesStore.displayName,
+                                text = avatarName,
                                 style = MaterialTheme.typography.titleLarge,
                                 color = TextPrimary,
                             )

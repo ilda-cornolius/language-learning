@@ -60,6 +60,16 @@ data class ExerciseQuestion(
     val explanation: String,
 )
 
+data class CourseLesson(
+    val id: String,
+    val number: Int,
+    val title: String,
+    val subtitle: String,
+    val level: String,
+    /** Opens the full grammar lesson when true; otherwise the daily lesson intro. */
+    val opensGrammarLesson: Boolean,
+)
+
 data class DailyGrammarLesson(
     val number: Int,
     val title: String,
@@ -717,6 +727,38 @@ object SampleContent {
 
     fun courseById(id: String): LanguageCourse =
         courses.firstOrNull { it.id == id } ?: courses.first()
+
+    fun courseLessons(courseId: String): List<CourseLesson> {
+        val grammar = dailyGrammarLesson(courseId)
+        val course = courseById(courseId)
+        val extras = when (courseId) {
+            "french" -> listOf(
+                CourseLesson("fr-greetings", 1, "Basic Greetings", "Say hello and introduce yourself politely", "Beginner", false),
+                CourseLesson("fr-numbers", 2, "Numbers 1–20", "Count and use numbers in everyday phrases", "Beginner", false),
+                CourseLesson("fr-colors", 3, "Colors and Shapes", "Describe objects with common adjectives", "Beginner", false),
+            )
+            "japanese" -> listOf(
+                CourseLesson("jp-hiragana", 1, "Hiragana Practice", "Read and write basic hiragana characters", "Beginner", false),
+                CourseLesson("jp-intro", 2, "Basic Introductions", "Introduce yourself with です sentences", "Beginner", false),
+                CourseLesson("jp-phrases", 3, "Common Phrases", "Useful everyday Japanese expressions", "Beginner", false),
+            )
+            else -> listOf(
+                CourseLesson("es-everyday", 1, "Everyday Conversations", "Practice natural Spanish chat for daily life", "Intermediate", false),
+                CourseLesson("es-restaurant", 2, "Restaurant Vocabulary", "Order food and drinks with confidence", "Intermediate", false),
+                CourseLesson("es-travel", 3, "Travel Phrases", "Navigate airports, hotels, and transport", "Intermediate", false),
+            )
+        }
+        return listOf(
+            CourseLesson(
+                id = "grammar-${course.id}",
+                number = grammar.number,
+                title = grammar.title,
+                subtitle = grammar.subtitle,
+                level = grammar.level,
+                opensGrammarLesson = true,
+            ),
+        ) + extras
+    }
 
     data class SocialFeed(
         val follows: List<SuggestedFollow>,

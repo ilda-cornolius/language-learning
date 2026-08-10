@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -23,6 +24,7 @@ import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -33,11 +35,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import com.google.mlkit.vision.common.InputImage
@@ -261,33 +266,117 @@ fun FlashcardStudyScreen(
     )
 
     GlassCard(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            CardTitle("Study session")
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(
+                text = "Study session",
+                color = TextPrimary,
+                fontWeight = FontWeight.Bold,
+                fontSize = 28.sp,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth(),
+            )
             if (!loaded) {
-                BodyText("Loading due cards…")
+                BodyText(
+                    "Loading due cards…",
+                    modifier = Modifier.fillMaxWidth(),
+                    color = TextMuted,
+                )
             } else if (queue.isEmpty()) {
                 Badge("Caught up", VistaGreen.copy(alpha = 0.7f))
-                CardTitle("You're caught up!")
-                BodyText("No cards are due right now. Import a deck or sync saved words to add more.")
-                AeroButton("Back", onClick = onBack, color = course.accent)
+                Text(
+                    text = "You're caught up!",
+                    color = TextPrimary,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 26.sp,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                BodyText(
+                    "No cards are due right now. Import a deck or sync saved words to add more.",
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                AeroButton(
+                    "Back",
+                    onClick = onBack,
+                    color = course.accent,
+                    modifier = Modifier.fillMaxWidth(0.7f),
+                    contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp),
+                    textStyle = MaterialTheme.typography.titleMedium,
+                )
             } else {
                 val card = queue.first()
-                Badge("${queue.size} due remaining · $reviews reviewed", course.accent.copy(alpha = 0.65f))
+                Badge(
+                    "${queue.size} due remaining · $reviews reviewed",
+                    course.accent.copy(alpha = 0.65f),
+                )
                 GlassTile(Modifier.fillMaxWidth(), color = GlassTileStrong) {
                     Column(
-                        Modifier.padding(20.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 24.dp, vertical = 28.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
-                        BodyText("Front", color = TextMuted)
-                        Text(card.front, color = TextPrimary, fontWeight = FontWeight.Bold)
+                        Text(
+                            text = "Front",
+                            color = TextMuted,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 18.sp,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        Text(
+                            text = card.front,
+                            color = TextPrimary,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 36.sp,
+                            lineHeight = 42.sp,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
                         if (revealed) {
-                            BodyText("Back", color = TextMuted)
-                            Text(card.back, color = VistaGreen, fontWeight = FontWeight.Bold)
-                            if (card.extra.isNotBlank()) BodyText(card.extra, color = TextMuted)
+                            Text(
+                                text = "Back",
+                                color = TextMuted,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 18.sp,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                            Text(
+                                text = card.back,
+                                color = VistaGreen,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 34.sp,
+                                lineHeight = 40.sp,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                            if (card.extra.isNotBlank()) {
+                                Text(
+                                    text = card.extra,
+                                    color = TextMuted,
+                                    fontSize = 20.sp,
+                                    lineHeight = 26.sp,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                            }
                         }
                     }
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                val studyButtonPadding = PaddingValues(horizontal = 18.dp, vertical = 16.dp)
+                val studyButtonStyle = MaterialTheme.typography.titleMedium
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
                     AeroButton(
                         "Speak",
                         onClick = {
@@ -295,21 +384,71 @@ fun FlashcardStudyScreen(
                             tts?.speak(card.front, TextToSpeech.QUEUE_FLUSH, null, "flash-front")
                         },
                         color = Color(0xFF526777),
+                        modifier = Modifier.weight(1f),
+                        contentPadding = studyButtonPadding,
+                        textStyle = studyButtonStyle,
                         leadingIcon = { Icon(Icons.AutoMirrored.Filled.VolumeUp, null) },
                     )
                     if (!revealed) {
-                        AeroButton("Reveal", onClick = { revealed = true }, color = course.accent)
+                        AeroButton(
+                            "Reveal",
+                            onClick = { revealed = true },
+                            color = course.accent,
+                            modifier = Modifier.weight(1f),
+                            contentPadding = studyButtonPadding,
+                            textStyle = studyButtonStyle,
+                        )
                     }
                 }
                 if (revealed) {
-                    BodyText("How well did you remember?", color = TextMuted)
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        AeroButton("Again", onClick = { rate(FlashcardRating.Again) }, color = Color(0xFFB63A3A))
-                        AeroButton("Hard", onClick = { rate(FlashcardRating.Hard) }, color = Color(0xFFFF6B1A))
+                    Text(
+                        text = "How well did you remember?",
+                        color = TextMuted,
+                        fontSize = 18.sp,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        AeroButton(
+                            "Again",
+                            onClick = { rate(FlashcardRating.Again) },
+                            color = Color(0xFFB63A3A),
+                            modifier = Modifier.weight(1f),
+                            contentPadding = studyButtonPadding,
+                            textStyle = studyButtonStyle,
+                        )
+                        AeroButton(
+                            "Hard",
+                            onClick = { rate(FlashcardRating.Hard) },
+                            color = Color(0xFFFF6B1A),
+                            modifier = Modifier.weight(1f),
+                            contentPadding = studyButtonPadding,
+                            textStyle = studyButtonStyle,
+                        )
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        AeroButton("Good", onClick = { rate(FlashcardRating.Good) }, color = VistaGreen)
-                        AeroButton("Easy", onClick = { rate(FlashcardRating.Easy) }, color = Color(0xFF2563EB))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        AeroButton(
+                            "Good",
+                            onClick = { rate(FlashcardRating.Good) },
+                            color = VistaGreen,
+                            modifier = Modifier.weight(1f),
+                            contentPadding = studyButtonPadding,
+                            textStyle = studyButtonStyle,
+                        )
+                        AeroButton(
+                            "Easy",
+                            onClick = { rate(FlashcardRating.Easy) },
+                            color = Color(0xFF2563EB),
+                            modifier = Modifier.weight(1f),
+                            contentPadding = studyButtonPadding,
+                            textStyle = studyButtonStyle,
+                        )
                     }
                 }
             }

@@ -27,6 +27,7 @@ enum class Destination(
     French("french", "French Learning Dashboard", "French", null),
     Japanese("japanese", "Japanese Learning Dashboard", "Japanese", null),
     Vocabulary("vocabulary", "Vocabulary Builder", "Vocabulary", Icons.Filled.Book),
+    Lessons("lessons", "Language Lessons", "Lessons", Icons.Filled.School),
     Conversation("conversation", "Conversation Practice", "Conversation", Icons.AutoMirrored.Filled.Chat),
     Listening("listening", "Listening Exercises", "Listening", Icons.Filled.Headphones),
     Writing("writing", "Writing Practice", "Writing", Icons.Filled.Edit),
@@ -51,7 +52,7 @@ enum class Destination(
     GrammarSprint("grammar-sprint", "Grammar Sprint", "Grammar Sprint", Icons.Filled.EmojiEvents);
 
     companion object {
-        val activities = listOf(Vocabulary, Conversation, Listening, Writing, Assistant, Flashcards)
+        val activities = listOf(Vocabulary, Lessons, Conversation, Listening, Writing, Assistant, Flashcards)
         val social = listOf(Instagram, Google)
         val settings = listOf(Profile, Preferences)
         val toolbar = listOf(DailyLesson, Practice, Challenges)
@@ -71,6 +72,7 @@ enum class Destination(
 
         fun titleFor(destination: Destination, languageName: String): String = when (destination) {
             Vocabulary -> "$languageName Vocabulary Builder"
+            Lessons -> "$languageName Lessons"
             Conversation -> "$languageName Conversation Practice"
             Listening -> "$languageName Listening Exercises"
             Writing -> "$languageName Writing Practice"

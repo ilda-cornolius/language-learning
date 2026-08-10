@@ -72,6 +72,7 @@ import com.lingualearn.pro.ui.screens.AssistantScreen
 import com.lingualearn.pro.ui.screens.ChallengesScreen
 import com.lingualearn.pro.ui.screens.ConversationScreen
 import com.lingualearn.pro.ui.screens.CourseDashboardScreen
+import com.lingualearn.pro.ui.screens.LessonsScreen
 import com.lingualearn.pro.ui.screens.DailyGrammarLessonScreen
 import com.lingualearn.pro.ui.screens.DictationNotebookScreen
 import com.lingualearn.pro.ui.screens.FlashcardBrowseScreen
@@ -647,6 +648,11 @@ private fun ContentArea(
                 preferencesStore = preferencesStore,
                 onComplete = { awardDaily("vocabulary", 30) },
             )
+            Destination.Lessons -> LessonsScreen(
+                course = activeCourse,
+                onOpenGrammarLesson = { onNavigate(Destination.Lesson) },
+                onOpenDailyLesson = { onNavigate(Destination.DailyLesson) },
+            )
             Destination.Conversation -> ConversationScreen(
                 course = activeCourse,
                 onComplete = { awardDaily("conversation", 50) },
@@ -795,6 +801,12 @@ private fun ContentArea(
                 current == Destination.Listening ||
                 current == Destination.Writing ||
                 current == Destination.Preferences ||
+                current == Destination.Vocabulary ||
+                current == Destination.Lessons ||
+                current == Destination.Conversation ||
+                current == Destination.Instagram ||
+                current == Destination.Google ||
+                current == Destination.Profile ||
                 isCourseDashboard
             val hideDailyProgress = current == Destination.Practice ||
                 current == Destination.QuickReview ||
@@ -811,9 +823,16 @@ private fun ContentArea(
                 current == Destination.GrammarSprint ||
                 current == Destination.DailyLesson ||
                 current == Destination.Assistant ||
+                current == Destination.Lesson ||
                 current == Destination.Listening ||
                 current == Destination.Writing ||
                 current == Destination.Preferences ||
+                current == Destination.Vocabulary ||
+                current == Destination.Lessons ||
+                current == Destination.Conversation ||
+                current == Destination.Instagram ||
+                current == Destination.Google ||
+                current == Destination.Profile ||
                 isCourseDashboard
             if (!hideCalendarClock) {
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -863,6 +882,12 @@ private fun WidgetsPanel(current: Destination, progress: ProgressState, modifier
         current == Destination.Listening ||
         current == Destination.Writing ||
         current == Destination.Preferences ||
+        current == Destination.Vocabulary ||
+        current == Destination.Lessons ||
+        current == Destination.Conversation ||
+        current == Destination.Instagram ||
+        current == Destination.Google ||
+        current == Destination.Profile ||
         isCourseDashboard
     val hideDailyProgress = current == Destination.Practice ||
         current == Destination.QuickReview ||
@@ -879,9 +904,16 @@ private fun WidgetsPanel(current: Destination, progress: ProgressState, modifier
         current == Destination.GrammarSprint ||
         current == Destination.DailyLesson ||
         current == Destination.Assistant ||
+        current == Destination.Lesson ||
         current == Destination.Listening ||
         current == Destination.Writing ||
         current == Destination.Preferences ||
+        current == Destination.Vocabulary ||
+        current == Destination.Lessons ||
+        current == Destination.Conversation ||
+        current == Destination.Instagram ||
+        current == Destination.Google ||
+        current == Destination.Profile ||
         isCourseDashboard
     Column(modifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
         if (!hideCalendarClock) {

@@ -9,12 +9,14 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
@@ -38,10 +40,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import coil.compose.SubcomposeAsyncImage
 import com.lingualearn.pro.ui.theme.GlassBorder
 import com.lingualearn.pro.ui.theme.GlassPanel
 import com.lingualearn.pro.ui.theme.GlassTile as GlassTileColor
@@ -200,6 +204,8 @@ fun AeroButton(
     color: Color = VistaAccent,
     leadingIcon: (@Composable () -> Unit)? = null,
     trailingIcon: (@Composable () -> Unit)? = null,
+    contentPadding: PaddingValues = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
+    textStyle: TextStyle = MaterialTheme.typography.bodyMedium,
 ) {
     Surface(
         modifier = modifier.clickable(onClick = onClick),
@@ -218,15 +224,16 @@ fun AeroButton(
                         1f to Color(0x14000000),
                     )
                 )
-                .padding(horizontal = 16.dp, vertical = 10.dp),
+                .padding(contentPadding),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center,
         ) {
             leadingIcon?.invoke()
             Text(
                 text = text,
-                style = MaterialTheme.typography.bodyMedium,
+                style = textStyle,
                 fontWeight = FontWeight.Medium,
+                textAlign = TextAlign.Center,
             )
             trailingIcon?.invoke()
         }
@@ -378,6 +385,34 @@ fun InitialsAvatar(name: String, size: Dp, modifier: Modifier = Modifier) {
             style = if (size < 32.dp) MaterialTheme.typography.bodySmall else MaterialTheme.typography.bodyMedium,
         )
     }
+}
+
+/** Circular avatar that prefers a remote Google photo URL, then falls back to initials. */
+@Composable
+fun ProfileAvatar(
+    name: String,
+    photoUrl: String?,
+    size: Dp,
+    modifier: Modifier = Modifier,
+) {
+    if (photoUrl.isNullOrBlank()) {
+        InitialsAvatar(name = name, size = size, modifier = modifier)
+        return
+    }
+    SubcomposeAsyncImage(
+        model = photoUrl,
+        contentDescription = "$name profile photo",
+        contentScale = ContentScale.Crop,
+        modifier = modifier
+            .size(size)
+            .clip(CircleShape),
+        loading = {
+            InitialsAvatar(name = name, size = size)
+        },
+        error = {
+            InitialsAvatar(name = name, size = size)
+        },
+    )
 }
 
 @Composable

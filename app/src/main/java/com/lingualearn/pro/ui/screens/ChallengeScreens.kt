@@ -144,6 +144,7 @@ fun SpeedRoundScreen(course: LanguageCourse, progressStore: ProgressStore, onBac
     var score by rememberSaveable(course.id, run) { mutableStateOf(0) }
     var seconds by rememberSaveable(course.id, run) { mutableStateOf(120) }
     var finished by rememberSaveable(course.id, run) { mutableStateOf(false) }
+    var xpEarned by rememberSaveable(course.id, run) { mutableStateOf<Int?>(null) }
     val words = remember(course.id) {
         val source = SampleContent.dictionaryWords(course.id)
         List(20) { source[it % source.size] }
@@ -153,7 +154,7 @@ fun SpeedRoundScreen(course: LanguageCourse, progressStore: ProgressStore, onBac
         if (finished) return
         finished = true
         progressStore.updateBestScore("$SPEED_ID:score", finalScore)
-        if (finalScore >= 12) {
+        xpEarned = if (finalScore >= 12) {
             progressStore.completeChallenge(
                 SPEED_ID,
                 500,
@@ -161,6 +162,8 @@ fun SpeedRoundScreen(course: LanguageCourse, progressStore: ProgressStore, onBac
                 "$SPEED_ID:score",
                 courseId = course.id,
             )
+        } else {
+            0
         }
     }
     LaunchedEffect(run, finished, seconds) {
@@ -175,13 +178,20 @@ fun SpeedRoundScreen(course: LanguageCourse, progressStore: ProgressStore, onBac
     GlassCard(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             if (finished) {
+                val won = score >= 12
                 ChallengeResult(
-                    success = score >= 12,
+                    success = won,
                     score = "$score / 20",
-                    successText = "Speed mastered! 500 XP awarded on your first win.",
+                    successText = if ((xpEarned ?: 0) > 0) {
+                        "Speed Round marked complete. You earned ${xpEarned} XP!"
+                    } else {
+                        "Speed Round complete! You've already claimed this challenge reward."
+                    },
                     failureText = "Score 12 or more to win.",
                     onRetry = { run++ },
                     onBack = onBack,
+                    xpEarned = if (won) xpEarned else null,
+                    xpReward = 500,
                 )
             } else {
                 val word = words[index]
@@ -226,6 +236,7 @@ fun MemoryMatchScreen(course: LanguageCourse, progressStore: ProgressStore, onBa
     var turns by rememberSaveable(course.id, run) { mutableStateOf(0) }
     var message by rememberSaveable(course.id, run) { mutableStateOf("Select a term, then its meaning.") }
     var inputLocked by remember(course.id, run) { mutableStateOf(false) }
+    var xpEarned by rememberSaveable(course.id, run) { mutableStateOf<Int?>(null) }
     val finished = matchedPairs.size == pairs.size
 
     LaunchedEffect(secondIndex, firstIndex) {
@@ -252,10 +263,10 @@ fun MemoryMatchScreen(course: LanguageCourse, progressStore: ProgressStore, onBa
     }
 
     LaunchedEffect(finished) {
-        if (finished) {
-            // Inverting turns lets the generic "highest score" store retain the fewest turns.
+        if (finished && xpEarned == null) {
             progressStore.updateBestScore("$MEMORY_ID:turns-inverse", 10_000 - turns)
-            progressStore.completeChallenge(MEMORY_ID, 300, pairs.size, courseId = course.id)
+            xpEarned = progressStore.completeChallenge(MEMORY_ID, 300, pairs.size, courseId = course.id)
+            SoundEffects.playSuccess(context, preferencesStore)
         }
     }
 
@@ -266,10 +277,16 @@ fun MemoryMatchScreen(course: LanguageCourse, progressStore: ProgressStore, onBa
                 ChallengeResult(
                     success = true,
                     score = "$turns turns",
-                    successText = "All 6 pairs matched! 300 XP awarded on your first completion.",
+                    successText = if ((xpEarned ?: 0) > 0) {
+                        "Memory Match marked complete. You earned ${xpEarned} XP!"
+                    } else {
+                        "All pairs matched! You've already claimed this challenge reward."
+                    },
                     failureText = "",
                     onRetry = { run++ },
                     onBack = onBack,
+                    xpEarned = xpEarned,
+                    xpReward = 300,
                 )
             } else {
                 ChallengeStats("Turns", turns.toString(), "Matches", "${matchedPairs.size}/6")
@@ -332,12 +349,14 @@ fun GrammarSprintScreen(course: LanguageCourse, progressStore: ProgressStore, on
     var score by rememberSaveable(course.id, run) { mutableStateOf(0) }
     var seconds by rememberSaveable(course.id, run) { mutableStateOf(60) }
     var finished by rememberSaveable(course.id, run) { mutableStateOf(false) }
+    var xpEarned by rememberSaveable(course.id, run) { mutableStateOf<Int?>(null) }
 
     fun finish(finalScore: Int) {
         if (finished) return
         finished = true
         progressStore.updateBestScore("$GRAMMAR_ID:score", finalScore)
-        if (finalScore >= 4 && seconds > 0) {
+        val won = finalScore >= 4 && seconds > 0
+        xpEarned = if (won) {
             progressStore.completeChallenge(
                 GRAMMAR_ID,
                 400,
@@ -345,6 +364,8 @@ fun GrammarSprintScreen(course: LanguageCourse, progressStore: ProgressStore, on
                 "$GRAMMAR_ID:score",
                 courseId = course.id,
             )
+        } else {
+            0
         }
     }
     LaunchedEffect(run, finished, seconds) {
@@ -359,13 +380,24 @@ fun GrammarSprintScreen(course: LanguageCourse, progressStore: ProgressStore, on
     GlassCard(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             if (finished) {
+                val won = score >= 4 && seconds > 0
                 ChallengeResult(
-                    success = score >= 4 && seconds > 0,
+                    success = won,
                     score = "$score / 6",
-                    successText = "Grammar sprint complete! 400 XP awarded on your first win.",
-                    failureText = if (seconds == 0) "Time expired. Get 4 correct answers to win." else "Get at least 4 correct answers to win.",
+                    successText = if ((xpEarned ?: 0) > 0) {
+                        "Grammar Sprint marked complete. You earned ${xpEarned} XP!"
+                    } else {
+                        "Grammar Sprint complete! You've already claimed this challenge reward."
+                    },
+                    failureText = if (seconds == 0) {
+                        "Time expired. Get 4 correct answers to win."
+                    } else {
+                        "Get at least 4 correct answers to win."
+                    },
                     onRetry = { run++ },
                     onBack = onBack,
+                    xpEarned = if (won) xpEarned else null,
+                    xpReward = 400,
                 )
             } else {
                 val question = questions[index]
@@ -432,9 +464,33 @@ private fun ChallengeResult(
     failureText: String,
     onRetry: () -> Unit,
     onBack: () -> Unit,
+    xpEarned: Int? = null,
+    xpReward: Int = 0,
 ) {
-    Badge(if (success) "SUCCESS" else "TRY AGAIN", if (success) VistaGreen else VistaAccent)
-    Text(score, style = MaterialTheme.typography.headlineMedium, color = if (success) VistaGreen else VistaAccent)
+    Badge(
+        text = when {
+            !success -> "TRY AGAIN"
+            xpEarned != null && xpEarned > 0 -> "COMPLETED · +$xpEarned XP"
+            else -> "COMPLETED"
+        },
+        color = if (success) VistaGreen else VistaAccent,
+    )
+    Text(
+        text = score,
+        style = MaterialTheme.typography.headlineMedium,
+        color = if (success) VistaGreen else VistaAccent,
+    )
+    if (success && xpEarned != null) {
+        Text(
+            text = if (xpEarned > 0) "+$xpEarned XP" else "Already completed · +0 XP this run",
+            color = if (xpEarned > 0) VistaGreen else TextMuted,
+            fontWeight = FontWeight.Bold,
+            style = MaterialTheme.typography.titleLarge,
+        )
+        if (xpEarned > 0 && xpReward > 0 && xpEarned != xpReward) {
+            BodyText("Reward for this challenge: $xpReward XP", color = TextMuted)
+        }
+    }
     BodyText(if (success) successText else failureText)
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         AeroButton("Retry", onClick = onRetry, color = VistaTeal)

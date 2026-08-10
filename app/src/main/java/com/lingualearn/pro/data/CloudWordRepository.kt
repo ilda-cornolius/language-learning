@@ -42,6 +42,9 @@ object CloudWordRepository {
     val userEmail: String?
         get() = auth.currentUser?.email
 
+    val userPhotoUrl: String?
+        get() = auth.currentUser?.photoUrl?.toString()
+
     /**
      * Signs in with Google, ensures a `users/{uid}` progress document exists,
      * and returns the user's cloud progress snapshot.

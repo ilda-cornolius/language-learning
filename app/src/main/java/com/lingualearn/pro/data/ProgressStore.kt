@@ -155,7 +155,7 @@ class ProgressStore(context: Context) {
         score: Int,
         scoreKey: String = challengeId,
         courseId: String? = null,
-    ) {
+    ): Int {
         updateBestScore(scoreKey, score)
         val completed = state.completedChallengeIds + challengeId
         if (completed != state.completedChallengeIds) {
@@ -163,8 +163,9 @@ class ProgressStore(context: Context) {
             state = state.copy(completedChallengeIds = completed)
             notifyChanged()
         }
-        awardOnce("challenge:$challengeId", xp, courseId = courseId)
+        val awarded = awardOnce("challenge:$challengeId", xp, courseId = courseId)
         markDayActive()
+        return if (awarded) xp else 0
     }
 
     fun updateBestScore(key: String, score: Int) {

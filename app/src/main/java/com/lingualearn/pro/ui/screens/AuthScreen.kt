@@ -2,6 +2,7 @@ package com.lingualearn.pro.ui.screens
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -19,7 +21,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -50,6 +54,7 @@ fun TitleAuthScreen(onSignedIn: () -> Unit) {
         val options = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
             .requestIdToken(context.getString(R.string.default_web_client_id))
             .requestEmail()
+            .requestProfile()
             .build()
         GoogleSignIn.getClient(context, options)
     }
@@ -95,6 +100,12 @@ fun TitleAuthScreen(onSignedIn: () -> Unit) {
                 verticalArrangement = Arrangement.spacedBy(20.dp),
                 modifier = Modifier.fillMaxWidth(),
             ) {
+                Image(
+                    painter = painterResource(R.drawable.ic_lingualearn_logo),
+                    contentDescription = "LinguaLearn Pro logo",
+                    modifier = Modifier.size(112.dp),
+                    contentScale = ContentScale.Fit,
+                )
                 Text(
                     text = "LinguaLearn Pro",
                     color = TextPrimary,
