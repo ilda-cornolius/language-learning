@@ -56,6 +56,7 @@ fun ChallengesScreen(
 ) {
     val progress = progressStore.state
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        PerfectWeekCard(progress)
         ChallengeEntry(
             title = "Speed Round",
             description = "Translate 20 vocabulary words in 120 seconds. Score 12 to win.",
@@ -83,7 +84,6 @@ fun ChallengesScreen(
             color = VistaBlue,
             onStart = onGrammarSprint,
         )
-        PerfectWeekCard(progress)
     }
 }
 

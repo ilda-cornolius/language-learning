@@ -57,6 +57,33 @@ enum class Destination(
         val settings = listOf(Profile, Preferences)
         val toolbar = listOf(DailyLesson, Practice, Challenges)
 
+        private val courseDashboards = setOf(Spanish, French, Japanese)
+        private val practiceDestinations = setOf(
+            Practice,
+            QuickReview,
+            GrammarDrills,
+            PronunciationLab,
+            DictationNotebook,
+            Flashcards,
+            FlashcardStudy,
+            FlashcardBrowse,
+            FlashcardOcr,
+        )
+        private val challengeDestinations = setOf(
+            Challenges,
+            SpeedRound,
+            MemoryMatch,
+            GrammarSprint,
+        )
+
+        /** Daily Lesson / Practice / Challenges tabs — dashboard and those flows only, not sidebar activities. */
+        fun showsLanguageToolbar(destination: Destination): Boolean =
+            destination in courseDashboards ||
+                destination in toolbar ||
+                destination == Lesson ||
+                destination in practiceDestinations ||
+                destination in challengeDestinations
+
         fun forCourse(courseId: String): Destination = when (courseId) {
             "french" -> French
             "japanese" -> Japanese

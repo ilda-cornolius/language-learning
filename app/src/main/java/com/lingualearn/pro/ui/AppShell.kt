@@ -248,7 +248,9 @@ private fun LinguaLearnSignedInShell(
                                 .background(Color(0x1A000000)),
                         )
                         Column(Modifier.weight(1f)) {
-                            LanguageToolbar(current, progress) { navigate(it) }
+                            if (Destination.showsLanguageToolbar(current)) {
+                                LanguageToolbar(current, progress) { navigate(it) }
+                            }
                             ContentArea(
                                 current = current,
                                 activeCourse = activeCourse,
@@ -302,7 +304,9 @@ private fun LinguaLearnSignedInShell(
                             onLessonSettings = { current = Destination.Preferences },
                             onLessonAudio = { playLessonAudio() },
                         )
-                        LanguageToolbar(current, progress) { navigate(it) }
+                        if (Destination.showsLanguageToolbar(current)) {
+                            LanguageToolbar(current, progress) { navigate(it) }
+                        }
                         ContentArea(
                             current = current,
                             activeCourse = activeCourse,
