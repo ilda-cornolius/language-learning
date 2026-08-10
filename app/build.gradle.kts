@@ -1,8 +1,17 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     id("com.google.gms.google-services")
+}
+
+val keystoreProperties = Properties().apply {
+    val file = rootProject.file("keystore.properties")
+    if (file.exists()) {
+        file.inputStream().use { load(it) }
+    }
 }
 
 android {
@@ -17,10 +26,30 @@ android {
         versionName = "2.3.1"
     }
 
+    signingConfigs {
+        create("release") {
+            val storePath = keystoreProperties["storeFile"] as? String
+            val storePass = keystoreProperties["storePassword"] as? String
+            val alias = keystoreProperties["keyAlias"] as? String
+            val keyPass = keystoreProperties["keyPassword"] as? String
+            if (!storePath.isNullOrBlank() &&
+                !storePass.isNullOrBlank() &&
+                !alias.isNullOrBlank() &&
+                !keyPass.isNullOrBlank()
+            ) {
+                storeFile = rootProject.file(storePath)
+                storePassword = storePass
+                keyAlias = alias
+                keyPassword = keyPass
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 

@@ -56,6 +56,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.google.firebase.auth.FirebaseAuth
 import com.lingualearn.pro.data.CloudWordRepository
 import com.lingualearn.pro.data.DailyReminderScheduler
 import com.lingualearn.pro.data.LanguageCourse
@@ -90,6 +91,7 @@ import com.lingualearn.pro.ui.screens.ProfileScreen
 import com.lingualearn.pro.ui.screens.PronunciationLabScreen
 import com.lingualearn.pro.ui.screens.QuickReviewScreen
 import com.lingualearn.pro.ui.screens.SpeedRoundScreen
+import com.lingualearn.pro.ui.screens.TitleAuthScreen
 import com.lingualearn.pro.ui.screens.VocabularyScreen
 import com.lingualearn.pro.ui.screens.WritingScreen
 import com.lingualearn.pro.ui.theme.GlassTileStrong
@@ -113,6 +115,57 @@ fun LinguaLearnApp() {
     val context = LocalContext.current
     val progressStore = remember(context) { ProgressStore(context.applicationContext) }
     val preferencesStore = remember(context) { PreferencesStore(context.applicationContext) }
+    var signedIn by remember { mutableStateOf(CloudWordRepository.isSignedIn) }
+    var cloudDirty by remember { mutableStateOf(0) }
+    var progressBound by remember { mutableStateOf(false) }
+
+    DisposableEffect(Unit) {
+        val firebaseAuth = FirebaseAuth.getInstance()
+        val listener = FirebaseAuth.AuthStateListener { auth ->
+            signedIn = auth.currentUser != null
+            if (auth.currentUser == null) progressBound = false
+        }
+        firebaseAuth.addAuthStateListener(listener)
+        onDispose { firebaseAuth.removeAuthStateListener(listener) }
+    }
+
+    DisposableEffect(progressStore) {
+        progressStore.onChanged = { cloudDirty += 1 }
+        onDispose { progressStore.onChanged = null }
+    }
+
+    LaunchedEffect(signedIn) {
+        if (!signedIn) return@LaunchedEffect
+        val userId = CloudWordRepository.uid ?: return@LaunchedEffect
+        progressStore.bindUser(userId)
+        runCatching { CloudWordRepository.loadProgress() }
+            .onSuccess { snap -> progressStore.replaceState(snap.state, snap.awardIds) }
+        progressBound = true
+    }
+
+    LaunchedEffect(cloudDirty, signedIn, progressBound) {
+        if (!signedIn || !progressBound || cloudDirty == 0) return@LaunchedEffect
+        delay(800)
+        val (state, awards) = progressStore.snapshot()
+        runCatching { CloudWordRepository.saveProgress(state, awards) }
+    }
+
+    if (!signedIn) {
+        TitleAuthScreen(onSignedIn = { signedIn = true })
+    } else {
+        LinguaLearnSignedInShell(
+            progressStore = progressStore,
+            preferencesStore = preferencesStore,
+        )
+    }
+}
+
+@Composable
+private fun LinguaLearnSignedInShell(
+    progressStore: ProgressStore,
+    preferencesStore: PreferencesStore,
+) {
+    val context = LocalContext.current
     val progress = progressStore.state
     var current by remember { mutableStateOf(Destination.Lesson) }
     var activeLanguageId by remember { mutableStateOf(preferencesStore.activeLanguageId) }

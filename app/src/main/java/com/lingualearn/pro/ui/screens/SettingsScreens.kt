@@ -26,6 +26,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.lingualearn.pro.R
 import com.lingualearn.pro.data.CloudWordRepository
 import com.lingualearn.pro.data.DailyReminderScheduler
 import com.lingualearn.pro.data.PreferencesStore
@@ -43,6 +46,7 @@ import com.lingualearn.pro.ui.components.InitialsAvatar
 import com.lingualearn.pro.ui.theme.TextMuted
 import com.lingualearn.pro.ui.theme.TextPrimary
 import com.lingualearn.pro.ui.theme.VistaAccent
+import com.lingualearn.pro.ui.theme.VistaBlue
 import com.lingualearn.pro.ui.theme.VistaGreen
 import com.lingualearn.pro.ui.theme.VistaTeal
 
@@ -53,17 +57,29 @@ fun ProfileScreen(
     preferencesStore: PreferencesStore,
     courseName: String,
 ) {
+    val context = LocalContext.current
     var editing by remember { mutableStateOf(false) }
     var draftName by remember(preferencesStore.displayName) {
         mutableStateOf(preferencesStore.displayName)
     }
-    val cloudLabel = CloudWordRepository.userLabel
+    val googleName = CloudWordRepository.userDisplayName
+    val googleEmail = CloudWordRepository.userEmail
+    val googleSignInClient = remember(context) {
+        val options = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+            .requestIdToken(context.getString(R.string.default_web_client_id))
+            .requestEmail()
+            .build()
+        GoogleSignIn.getClient(context, options)
+    }
 
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         GlassCard(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    InitialsAvatar(preferencesStore.displayName, 72.dp)
+                    InitialsAvatar(
+                        googleName ?: preferencesStore.displayName,
+                        72.dp,
+                    )
                     Column(Modifier.padding(start = 16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         if (editing) {
                             GlassTextField(
@@ -92,14 +108,14 @@ fun ProfileScreen(
                             }
                         } else {
                             Text(
-                                text = preferencesStore.displayName,
+                                text = googleName ?: preferencesStore.displayName,
                                 style = MaterialTheme.typography.titleLarge,
                                 color = TextPrimary,
                             )
-                            BodyText("$courseName Learner since ${preferencesStore.learnerSinceYear}")
-                            cloudLabel?.let {
-                                BodyText("Signed in as $it", color = TextMuted)
+                            googleEmail?.let {
+                                BodyText(it, color = TextMuted)
                             }
+                            BodyText("$courseName Learner since ${preferencesStore.learnerSinceYear}")
                             AeroButton(
                                 text = "Edit name",
                                 color = VistaAccent,
@@ -112,6 +128,16 @@ fun ProfileScreen(
                     StatTile("Total XP", progress.totalXp.toString(), Modifier.weight(1f))
                     StatTile("Lessons Completed", progress.lessonsCompleted.toString(), Modifier.weight(1f))
                 }
+                AeroButton(
+                    text = "Sign out",
+                    color = VistaBlue,
+                    onClick = {
+                        googleSignInClient.signOut().addOnCompleteListener {
+                            CloudWordRepository.signOut()
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                )
             }
         }
 

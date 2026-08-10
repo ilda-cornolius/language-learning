@@ -12,3 +12,8 @@ captures/
 *.apk
 *.ap_
 *.aab
+keystore.properties
+*.jks
+*.keystore
+hs_err_pid*.log
+replay_pid*.log

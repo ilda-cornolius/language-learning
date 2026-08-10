@@ -1,6 +1,7 @@
 package com.lingualearn.pro.data
 
 import android.content.Context
+import android.content.SharedPreferences
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -46,13 +47,51 @@ data class ProgressState(
 }
 
 class ProgressStore(context: Context) {
-    private val preferences = context.applicationContext.getSharedPreferences(
-        "lingualearn_progress",
+    private val appContext = context.applicationContext
+    private var preferences: SharedPreferences = appContext.getSharedPreferences(
+        PREFS_GUEST,
         Context.MODE_PRIVATE,
     )
+    private var boundUid: String? = null
+
+    /** Invoked after local mutations so the app can push progress to the cloud. */
+    var onChanged: (() -> Unit)? = null
 
     var state by mutableStateOf(load())
         private set
+
+    /**
+     * Switch to a UID-scoped preferences file and reload local state.
+     * Does not invoke [onChanged].
+     */
+    fun bindUser(uid: String) {
+        if (boundUid == uid) return
+        boundUid = uid
+        preferences = appContext.getSharedPreferences(prefsNameFor(uid), Context.MODE_PRIVATE)
+        state = load()
+    }
+
+    /** Apply a cloud (or other) snapshot without notifying [onChanged]. */
+    fun replaceState(newState: ProgressState, awardIds: Set<String>) {
+        preferences.edit()
+            .putStringSet(KEY_AWARDS, awardIds.toMutableSet())
+            .putInt(KEY_XP, newState.totalXp)
+            .putInt(KEY_LESSONS, newState.lessonsCompleted)
+            .putStringSet(KEY_DATES, newState.completionDates.toMutableSet())
+            .putStringSet(KEY_CHALLENGES, newState.completedChallengeIds.toMutableSet())
+            .putString(KEY_BEST_SCORES, encodeScores(newState.bestScores))
+            .putString(KEY_COURSE_XP, encodeScores(newState.courseXp))
+            .apply()
+        state = newState
+    }
+
+    fun snapshot(): Pair<ProgressState, Set<String>> {
+        val awards = preferences.getStringSet(KEY_AWARDS, emptySet()).orEmpty().toSet()
+        return state to awards
+    }
+
+    val awardIds: Set<String>
+        get() = preferences.getStringSet(KEY_AWARDS, emptySet()).orEmpty().toSet()
 
     /**
      * Awards XP once for a stable ID. The ID is persisted before observable
@@ -88,6 +127,7 @@ class ProgressStore(context: Context) {
             .apply()
         state = newState
         if (lessonCompleted) maybeAwardPerfectWeek()
+        notifyChanged()
         return true
     }
 
@@ -102,6 +142,7 @@ class ProgressStore(context: Context) {
         preferences.edit().putStringSet(KEY_DATES, dates).apply()
         state = state.copy(completionDates = dates)
         maybeAwardPerfectWeek()
+        notifyChanged()
     }
 
     /** Progress percent for a course: 100 XP → 10%, capped at 100. */
@@ -120,6 +161,7 @@ class ProgressStore(context: Context) {
         if (completed != state.completedChallengeIds) {
             preferences.edit().putStringSet(KEY_CHALLENGES, completed).apply()
             state = state.copy(completedChallengeIds = completed)
+            notifyChanged()
         }
         awardOnce("challenge:$challengeId", xp, courseId = courseId)
         markDayActive()
@@ -130,12 +172,17 @@ class ProgressStore(context: Context) {
         val scores = state.bestScores + (key to score)
         preferences.edit().putString(KEY_BEST_SCORES, encodeScores(scores)).apply()
         state = state.copy(bestScores = scores)
+        notifyChanged()
     }
 
     private fun maybeAwardPerfectWeek() {
         if (state.perfectWeekProgress < 7) return
         if (ProgressState.PERFECT_WEEK_ID in state.completedChallengeIds) return
         completeChallenge(ProgressState.PERFECT_WEEK_ID, 1000, 7)
+    }
+
+    private fun notifyChanged() {
+        onChanged?.invoke()
     }
 
     private fun load() = ProgressState(
@@ -160,6 +207,7 @@ class ProgressStore(context: Context) {
         .toMap()
 
     companion object {
+        private const val PREFS_GUEST = "lingualearn_progress"
         private const val KEY_XP = "total_xp"
         private const val KEY_LESSONS = "lessons_completed"
         private const val KEY_DATES = "completion_dates"
@@ -167,6 +215,8 @@ class ProgressStore(context: Context) {
         private const val KEY_CHALLENGES = "completed_challenges"
         private const val KEY_BEST_SCORES = "best_scores"
         private const val KEY_COURSE_XP = "course_xp"
+
+        fun prefsNameFor(uid: String) = "lingualearn_progress_$uid"
 
         fun todayKey(): String = dateKey(System.currentTimeMillis())
     }
