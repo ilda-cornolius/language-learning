@@ -50,6 +50,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -57,6 +58,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.google.firebase.auth.FirebaseAuth
 import com.lingualearn.pro.data.CloudWordRepository
@@ -171,8 +173,8 @@ private fun LinguaLearnSignedInShell(
 ) {
     val context = LocalContext.current
     val progress = progressStore.state
-    var current by remember { mutableStateOf(Destination.Lesson) }
-    var activeLanguageId by remember { mutableStateOf(preferencesStore.activeLanguageId) }
+    var current by rememberSaveable { mutableStateOf(Destination.Lesson) }
+    var activeLanguageId by rememberSaveable { mutableStateOf(preferencesStore.activeLanguageId) }
     val activeCourse = SampleContent.courseById(activeLanguageId)
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
@@ -226,37 +228,96 @@ private fun LinguaLearnSignedInShell(
 
     AeroBackground {
         BoxWithConstraints(Modifier.fillMaxSize()) {
-            // Tablets and unfolded devices get the mockup's three-column desktop
-            // layout; phones fall back to a drawer with the widgets inlined.
-            val expanded = maxWidth >= 840.dp
+            // Adaptive width classes for phones, foldables (Galaxy Fold), and tablets.
+            // Compact: cover display / phone. Medium: unfolded Fold. Expanded: tablet / wide Fold landscape.
+            val widthClass = when {
+                maxWidth < 600.dp -> AppWidthClass.Compact
+                maxWidth < 840.dp -> AppWidthClass.Medium
+                else -> AppWidthClass.Expanded
+            }
 
-            if (expanded) {
-                Column(Modifier.safeDrawingPadding()) {
-                    TitleBar(
-                        title = screenTitle,
-                        onMenuClick = null,
-                        showLessonActions = current == Destination.Lesson,
+            when (widthClass) {
+                AppWidthClass.Expanded -> {
+                    AdaptiveWideShell(
+                        screenTitle = screenTitle,
+                        current = current,
+                        activeLanguageId = activeLanguageId,
+                        activeCourse = activeCourse,
+                        progress = progress,
+                        progressStore = progressStore,
+                        preferencesStore = preferencesStore,
+                        showWidgetsColumn = true,
+                        sidebarWidth = 250.dp,
+                        onNavigate = { navigate(it) },
                         onLessonSettings = { current = Destination.Preferences },
                         onLessonAudio = { playLessonAudio() },
+                        onSelectLanguage = { course ->
+                            activeLanguageId = course.id
+                            preferencesStore.updateActiveLanguageId(course.id)
+                            navigate(Destination.forCourse(course.id))
+                        },
                     )
-                    Row(Modifier.weight(1f)) {
-                        Sidebar(
-                            current = current,
-                            activeLanguageId = activeLanguageId,
-                            progressStore = progressStore,
-                            preferencesStore = preferencesStore,
-                            onSelect = { navigate(it) },
-                            onSelectLanguage = { course ->
-                                activeLanguageId = course.id
-                                preferencesStore.updateActiveLanguageId(course.id)
-                                navigate(Destination.forCourse(course.id))
-                            },
-                            modifier = Modifier
-                                .width(250.dp)
-                                .fillMaxHeight()
-                                .background(Color(0x1A000000)),
-                        )
-                        Column(Modifier.weight(1f)) {
+                }
+                AppWidthClass.Medium -> {
+                    // Unfolded foldables: keep a persistent sidebar, put widgets inline.
+                    AdaptiveWideShell(
+                        screenTitle = screenTitle,
+                        current = current,
+                        activeLanguageId = activeLanguageId,
+                        activeCourse = activeCourse,
+                        progress = progress,
+                        progressStore = progressStore,
+                        preferencesStore = preferencesStore,
+                        showWidgetsColumn = false,
+                        sidebarWidth = 220.dp,
+                        onNavigate = { navigate(it) },
+                        onLessonSettings = { current = Destination.Preferences },
+                        onLessonAudio = { playLessonAudio() },
+                        onSelectLanguage = { course ->
+                            activeLanguageId = course.id
+                            preferencesStore.updateActiveLanguageId(course.id)
+                            navigate(Destination.forCourse(course.id))
+                        },
+                    )
+                }
+                AppWidthClass.Compact -> {
+                    ModalNavigationDrawer(
+                        drawerState = drawerState,
+                        drawerContent = {
+                            ModalDrawerSheet(
+                                drawerContainerColor = Color(0xE60F3D5C),
+                                drawerContentColor = TextPrimary,
+                            ) {
+                                Sidebar(
+                                    current = current,
+                                    activeLanguageId = activeLanguageId,
+                                    progressStore = progressStore,
+                                    preferencesStore = preferencesStore,
+                                    onSelect = {
+                                        navigate(it)
+                                        scope.launch { drawerState.close() }
+                                    },
+                                    onSelectLanguage = { course ->
+                                        activeLanguageId = course.id
+                                        preferencesStore.updateActiveLanguageId(course.id)
+                                        navigate(Destination.forCourse(course.id))
+                                        scope.launch { drawerState.close() }
+                                    },
+                                    modifier = Modifier
+                                        .fillMaxHeight()
+                                        .verticalScroll(rememberScrollState()),
+                                )
+                            }
+                        },
+                    ) {
+                        Column(Modifier.safeDrawingPadding()) {
+                            TitleBar(
+                                title = screenTitle,
+                                onMenuClick = { scope.launch { drawerState.open() } },
+                                showLessonActions = current == Destination.Lesson,
+                                onLessonSettings = { current = Destination.Preferences },
+                                onLessonAudio = { playLessonAudio() },
+                            )
                             if (Destination.showsLanguageToolbar(current)) {
                                 LanguageToolbar(current, progress) { navigate(it) }
                             }
@@ -266,77 +327,85 @@ private fun LinguaLearnSignedInShell(
                                 progressStore = progressStore,
                                 preferencesStore = preferencesStore,
                                 onNavigate = { navigate(it) },
-                                showWidgets = false,
+                                showWidgets = true,
                                 modifier = Modifier.weight(1f),
                             )
+                            StatusBar()
                         }
-                        WidgetsPanel(
-                            current = current,
-                            progress = progress,
-                            modifier = Modifier
-                                .width(230.dp)
-                                .fillMaxHeight()
-                                .verticalScroll(rememberScrollState())
-                                .padding(12.dp)
-                        )
-                    }
-                    StatusBar()
-                }
-            } else {
-                ModalNavigationDrawer(
-                    drawerState = drawerState,
-                    drawerContent = {
-                        ModalDrawerSheet(
-                            drawerContainerColor = Color(0xE60F3D5C),
-                            drawerContentColor = TextPrimary,
-                        ) {
-                            Sidebar(
-                                current = current,
-                                activeLanguageId = activeLanguageId,
-                                progressStore = progressStore,
-                                preferencesStore = preferencesStore,
-                                onSelect = {
-                                    navigate(it)
-                                    scope.launch { drawerState.close() }
-                                },
-                                onSelectLanguage = { course ->
-                                    activeLanguageId = course.id
-                                    preferencesStore.updateActiveLanguageId(course.id)
-                                    navigate(Destination.forCourse(course.id))
-                                    scope.launch { drawerState.close() }
-                                },
-                                modifier = Modifier
-                                    .fillMaxHeight()
-                                    .verticalScroll(rememberScrollState()),
-                            )
-                        }
-                    },
-                ) {
-                    Column(Modifier.safeDrawingPadding()) {
-                        TitleBar(
-                            title = screenTitle,
-                            onMenuClick = { scope.launch { drawerState.open() } },
-                            showLessonActions = current == Destination.Lesson,
-                            onLessonSettings = { current = Destination.Preferences },
-                            onLessonAudio = { playLessonAudio() },
-                        )
-                        if (Destination.showsLanguageToolbar(current)) {
-                            LanguageToolbar(current, progress) { navigate(it) }
-                        }
-                        ContentArea(
-                            current = current,
-                            activeCourse = activeCourse,
-                            progressStore = progressStore,
-                            preferencesStore = preferencesStore,
-                            onNavigate = { navigate(it) },
-                            showWidgets = true,
-                            modifier = Modifier.weight(1f),
-                        )
-                        StatusBar()
                     }
                 }
             }
         }
+    }
+}
+
+private enum class AppWidthClass { Compact, Medium, Expanded }
+
+@Composable
+private fun AdaptiveWideShell(
+    screenTitle: String,
+    current: Destination,
+    activeLanguageId: String,
+    activeCourse: LanguageCourse,
+    progress: ProgressState,
+    progressStore: ProgressStore,
+    preferencesStore: PreferencesStore,
+    showWidgetsColumn: Boolean,
+    sidebarWidth: Dp,
+    onNavigate: (Destination) -> Unit,
+    onLessonSettings: () -> Unit,
+    onLessonAudio: () -> Unit,
+    onSelectLanguage: (LanguageCourse) -> Unit,
+) {
+    Column(Modifier.safeDrawingPadding()) {
+        TitleBar(
+            title = screenTitle,
+            onMenuClick = null,
+            showLessonActions = current == Destination.Lesson,
+            onLessonSettings = onLessonSettings,
+            onLessonAudio = onLessonAudio,
+        )
+        Row(Modifier.weight(1f)) {
+            Sidebar(
+                current = current,
+                activeLanguageId = activeLanguageId,
+                progressStore = progressStore,
+                preferencesStore = preferencesStore,
+                onSelect = onNavigate,
+                onSelectLanguage = onSelectLanguage,
+                modifier = Modifier
+                    .width(sidebarWidth)
+                    .fillMaxHeight()
+                    .background(Color(0x1A000000))
+                    .verticalScroll(rememberScrollState()),
+            )
+            Column(Modifier.weight(1f)) {
+                if (Destination.showsLanguageToolbar(current)) {
+                    LanguageToolbar(current, progress, onNavigate)
+                }
+                ContentArea(
+                    current = current,
+                    activeCourse = activeCourse,
+                    progressStore = progressStore,
+                    preferencesStore = preferencesStore,
+                    onNavigate = onNavigate,
+                    showWidgets = !showWidgetsColumn,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+            if (showWidgetsColumn) {
+                WidgetsPanel(
+                    current = current,
+                    progress = progress,
+                    modifier = Modifier
+                        .width(230.dp)
+                        .fillMaxHeight()
+                        .verticalScroll(rememberScrollState())
+                        .padding(12.dp),
+                )
+            }
+        }
+        StatusBar()
     }
 }
 
