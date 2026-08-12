@@ -207,14 +207,19 @@ fun ConversationScreen(
     val pack = SampleContent.activityPack(course.id)
     val scenarios = remember(course.id) { SampleContent.conversationScenarios(course.id) }
     var active by remember(course.id) { mutableStateOf<ConversationScenario?>(null) }
-    var turnIndex by remember(course.id) { mutableIntStateOf(0) }
-    var score by remember(course.id) { mutableIntStateOf(0) }
-    var selected by remember(course.id) { mutableStateOf<Int?>(null) }
-    var checked by remember(course.id) { mutableStateOf(false) }
-    var finished by remember(course.id) { mutableStateOf(false) }
+    val messages = remember { mutableStateListOf<ChatMessage>() }
+    var draft by remember(course.id) { mutableStateOf("") }
+    var isReplying by remember(course.id) { mutableStateOf(false) }
+    var awarded by remember(course.id) { mutableStateOf(false) }
+    val scrollState = rememberScrollState()
+    val scope = rememberCoroutineScope()
+
+    LaunchedEffect(messages.size, isReplying) {
+        scrollState.animateScrollTo(scrollState.maxValue)
+    }
 
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        BodyText("${course.flag}  ${pack.conversationNote}")
+        BodyText("${course.flag}  ${pack.conversationNote} — an AI partner plays the other role.")
         val scenario = active
         if (scenario == null) {
             scenarios.forEach { item ->
@@ -228,103 +233,129 @@ fun ConversationScreen(
                     },
                     onStart = {
                         active = item
-                        turnIndex = 0
-                        score = 0
-                        selected = null
-                        checked = false
-                        finished = false
+                        messages.clear()
+                        draft = ""
+                        awarded = false
+                        isReplying = true
+                        scope.launch {
+                            val opening = runCatching {
+                                AiTutorRepository.startRolePlay(course, item)
+                            }.getOrElse {
+                                Log.e("AiTutor", "Conversation start failed", it)
+                                "${pack.tutorGreeting}\nLet's role-play: ${item.title}."
+                            }
+                            messages.add(ChatMessage(opening, fromUser = false))
+                            isReplying = false
+                        }
                     },
                 )
             }
-        } else if (finished) {
-            GlassCard(Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    CardTitle(scenario.title)
-                    Text(
-                        "$score / ${scenario.turns.size}",
-                        style = MaterialTheme.typography.headlineMedium,
-                        color = VistaGreen,
-                    )
-                    BodyText("Nice dialogue practice! XP is awarded once per day.")
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        AeroButton(
-                            text = "Back to scenarios",
-                            color = Color(0xFF526777),
-                            onClick = { active = null },
-                        )
-                        AeroButton(
-                            text = "Try again",
-                            color = course.accent,
-                            onClick = {
-                                turnIndex = 0
-                                score = 0
-                                selected = null
-                                checked = false
-                                finished = false
-                            },
-                        )
-                    }
-                }
-            }
         } else {
-            val turn = scenario.turns[turnIndex]
             GlassCard(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     CardTitle(scenario.title)
-                    BodyText("Turn ${turnIndex + 1}/${scenario.turns.size}", color = TextMuted)
-                    GlassTile(Modifier.fillMaxWidth()) {
-                        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text(turn.prompt, color = TextPrimary, fontWeight = FontWeight.Bold)
-                            BodyText(turn.translation, color = TextMuted)
-                        }
-                    }
-                    BodyText("Choose the best reply:")
-                    turn.options.forEachIndexed { optionIndex, option ->
-                        val isSelected = selected == optionIndex
-                        val isCorrect = checked && optionIndex == turn.correctIndex
-                        val isWrong = checked && isSelected && optionIndex != turn.correctIndex
-                        GlassTile(
-                            Modifier.fillMaxWidth(),
-                            color = when {
-                                isCorrect -> VistaGreen.copy(alpha = 0.45f)
-                                isWrong -> Color(0x99B63A3A)
-                                isSelected -> course.accent.copy(alpha = 0.35f)
-                                else -> Color(0x1AFFFFFF)
-                            },
-                            onClick = { if (!checked) selected = optionIndex },
+                    BodyText("Reply in ${course.name} or English. The AI partner stays in the scene.", color = TextMuted)
+                    GlassTile(
+                        Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 220.dp, max = 340.dp),
+                    ) {
+                        Column(
+                            Modifier
+                                .padding(12.dp)
+                                .verticalScroll(scrollState),
+                            verticalArrangement = Arrangement.spacedBy(10.dp),
                         ) {
-                            Text(option, color = TextPrimary, modifier = Modifier.padding(14.dp))
-                        }
-                    }
-                    AeroButton(
-                        text = when {
-                            !checked -> "Check answer"
-                            turnIndex == scenario.turns.lastIndex -> "Finish"
-                            else -> "Next turn"
-                        },
-                        color = course.accent,
-                        onClick = {
-                            when {
-                                !checked && selected != null -> {
-                                    checked = true
-                                    if (selected == turn.correctIndex) score++
-                                }
-                                checked && turnIndex == scenario.turns.lastIndex -> {
-                                    finished = true
-                                    onComplete()
-                                }
-                                checked -> {
-                                    turnIndex++
-                                    selected = null
-                                    checked = false
+                            messages.forEach { message ->
+                                Row(
+                                    Modifier.fillMaxWidth(),
+                                    horizontalArrangement = if (message.fromUser) Arrangement.End else Arrangement.Start,
+                                ) {
+                                    GlassTile(
+                                        color = if (message.fromUser) course.accent.copy(alpha = 0.35f)
+                                        else VistaTeal.copy(alpha = 0.3f),
+                                        shape = RoundedCornerShape(12.dp),
+                                    ) {
+                                        Text(
+                                            text = message.text,
+                                            color = TextPrimary,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            modifier = Modifier.padding(12.dp),
+                                        )
+                                    }
                                 }
                             }
-                        },
-                    )
+                            if (isReplying) {
+                                GlassTile(
+                                    color = VistaTeal.copy(alpha = 0.3f),
+                                    shape = RoundedCornerShape(12.dp),
+                                ) {
+                                    Text(
+                                        text = "Your partner is speaking…",
+                                        color = TextMuted,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        modifier = Modifier.padding(12.dp),
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        GlassTextField(
+                            value = draft,
+                            onValueChange = { draft = it },
+                            placeholder = "Type your reply…",
+                            modifier = Modifier.weight(1f),
+                        )
+                        Spacer(Modifier.size(8.dp))
+                        AeroButton(
+                            text = if (isReplying) "…" else "Send",
+                            color = course.accent,
+                            onClick = {
+                                if (draft.isBlank() || isReplying) return@AeroButton
+                                val reply = draft.trim()
+                                val history = messages.map { it.fromUser to it.text }
+                                messages.add(ChatMessage(reply, fromUser = true))
+                                draft = ""
+                                isReplying = true
+                                scope.launch {
+                                    val response = runCatching {
+                                        AiTutorRepository.rolePlay(
+                                            course = course,
+                                            scenario = scenario,
+                                            conversation = history,
+                                            userMessage = reply,
+                                        )
+                                    }.getOrElse {
+                                        Log.e("AiTutor", "Conversation reply failed", it)
+                                        "I couldn't reach the AI partner. Try again in a moment."
+                                    }
+                                    messages.add(ChatMessage(response, fromUser = false))
+                                    isReplying = false
+                                    if (!awarded) {
+                                        awarded = true
+                                        onComplete()
+                                    }
+                                }
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    Icons.AutoMirrored.Filled.Send,
+                                    contentDescription = null,
+                                    modifier = Modifier
+                                        .padding(end = 8.dp)
+                                        .size(16.dp),
+                                )
+                            },
+                        )
+                    }
                     AeroButton(
-                        text = "Cancel scenario",
+                        text = "Back to scenarios",
                         color = Color(0xFF526777),
-                        onClick = { active = null },
+                        onClick = {
+                            active = null
+                            messages.clear()
+                        },
                     )
                 }
             }

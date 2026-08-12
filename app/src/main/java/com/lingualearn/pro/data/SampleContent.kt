@@ -13,6 +13,9 @@ data class LanguageCourse(
     val level: String,
     val accent: Color,
     val recentLessons: List<String>,
+    val localeTag: String = "en-US",
+    val optional: Boolean = false,
+    val nativeLabel: String = "",
 )
 
 data class DialogueLine(
@@ -113,6 +116,8 @@ object SampleContent {
             level = "Intermediate",
             accent = VistaAccent,
             recentLessons = listOf("Everyday Conversations", "Past Tense Practice", "Restaurant Vocabulary"),
+            localeTag = "es-ES",
+            nativeLabel = "español",
         ),
         LanguageCourse(
             id = "french",
@@ -122,6 +127,8 @@ object SampleContent {
             level = "Beginner",
             accent = VistaBlue,
             recentLessons = listOf("Basic Greetings", "Numbers 1-20", "Colors and Shapes"),
+            localeTag = "fr-FR",
+            nativeLabel = "français",
         ),
         LanguageCourse(
             id = "japanese",
@@ -131,8 +138,19 @@ object SampleContent {
             level = "Beginner",
             accent = VistaGreen,
             recentLessons = listOf("Hiragana Practice", "Basic Introductions", "Common Phrases"),
+            localeTag = "ja-JP",
+            nativeLabel = "日本語",
         ),
     )
+
+    val optionalCourses: List<LanguageCourse>
+        get() = LanguageCatalog.optionalCourses
+
+    val allCourses: List<LanguageCourse>
+        get() = courses + optionalCourses
+
+    fun visibleCourses(selectedOptionalIds: Set<String>): List<LanguageCourse> =
+        courses + optionalCourses.filter { it.id in selectedOptionalIds }
 
     val dialogue = listOf(
         DialogueLine("A", VistaGreen, "¿Cómo estuvo tu fin de semana?", "How was your weekend?"),
@@ -240,27 +258,30 @@ object SampleContent {
             ),
             conversationNote = "Practice these scenarios in Japanese",
         )
-        else -> ActivityPack(
-            vocabulary = vocabularyBuilder,
-            nativeLabel = "español",
-            listeningTitle = "Spanish News Podcast",
-            listeningDescription = "Listen to current events in Spanish",
-            listeningPhrases = listOf(
-                GrammarExample("Buenos días, ¿cómo está usted?", "Good morning, how are you?"),
-                GrammarExample("¿Dónde está la estación?", "Where is the station?"),
-                GrammarExample("Me gustaría un café, por favor.", "I would like a coffee, please."),
-                GrammarExample("Ayer fui al cine con mis amigos.", "Yesterday I went to the movies with my friends."),
-                GrammarExample("Muchas gracias por su ayuda.", "Thank you very much for your help."),
-            ),
-            writingPrompt = "Describe your ideal vacation in Spanish (40 words minimum)",
-            writingPlaceholder = "Escribe aquí...",
-            writingSuccess = "¡Bien hecho! Your tutor will review this entry.",
-            tutorGreeting = "¡Hola! I'm your AI Spanish tutor. How can I help you today?",
-            tutorPlaceholder = "Ask me anything about Spanish...",
-            tutorReplies = spanishTutorReplies,
-            conversationNote = "Practice these scenarios in Spanish",
-        )
+        "spanish" -> spanishActivityPack()
+        else -> LanguageCatalog.activityPack(courseId) ?: spanishActivityPack()
     }
+
+    private fun spanishActivityPack() = ActivityPack(
+        vocabulary = vocabularyBuilder,
+        nativeLabel = "español",
+        listeningTitle = "Spanish News Podcast",
+        listeningDescription = "Listen to current events in Spanish",
+        listeningPhrases = listOf(
+            GrammarExample("Buenos días, ¿cómo está usted?", "Good morning, how are you?"),
+            GrammarExample("¿Dónde está la estación?", "Where is the station?"),
+            GrammarExample("Me gustaría un café, por favor.", "I would like a coffee, please."),
+            GrammarExample("Ayer fui al cine con mis amigos.", "Yesterday I went to the movies with my friends."),
+            GrammarExample("Muchas gracias por su ayuda.", "Thank you very much for your help."),
+        ),
+        writingPrompt = "Describe your ideal vacation in Spanish (40 words minimum)",
+        writingPlaceholder = "Escribe aquí...",
+        writingSuccess = "¡Bien hecho! Your tutor will review this entry.",
+        tutorGreeting = "¡Hola! I'm your AI Spanish tutor. How can I help you today?",
+        tutorPlaceholder = "Ask me anything about Spanish...",
+        tutorReplies = spanishTutorReplies,
+        conversationNote = "Practice these scenarios in Spanish",
+    )
 
     fun conversationScenarios(courseId: String): List<ConversationScenario> = when (courseId) {
         "french" -> listOf(
@@ -417,7 +438,7 @@ object SampleContent {
                 ),
             ),
         )
-        else -> listOf(
+        "spanish" -> listOf(
             ConversationScenario(
                 id = "restaurant",
                 title = "Restaurant Conversation",
@@ -494,6 +515,31 @@ object SampleContent {
                 ),
             ),
         )
+        else -> genericConversationScenarios(courseId)
+    }
+
+    private fun genericConversationScenarios(courseId: String): List<ConversationScenario> {
+        val course = courseById(courseId)
+        return listOf(
+            ConversationScenario(
+                id = "restaurant",
+                title = "Restaurant Conversation",
+                description = "Practice ordering food and drinks in ${course.name}",
+                turns = emptyList(),
+            ),
+            ConversationScenario(
+                id = "travel",
+                title = "Travel Scenarios",
+                description = "Airport, hotel, and transportation in ${course.name}",
+                turns = emptyList(),
+            ),
+            ConversationScenario(
+                id = "small-talk",
+                title = "Small Talk",
+                description = "Weather, weekends, and introductions in ${course.name}",
+                turns = emptyList(),
+            ),
+        )
     }
 
     fun dailyGrammarLesson(courseId: String): DailyGrammarLesson = when (courseId) {
@@ -563,7 +609,7 @@ object SampleContent {
                 ),
             ),
         )
-        else -> DailyGrammarLesson(
+        "spanish" -> DailyGrammarLesson(
             number = 12,
             title = "Talking about completed actions",
             subtitle = "Learn how to use the Spanish preterite for actions completed in the past",
@@ -596,6 +642,7 @@ object SampleContent {
                 ),
             ),
         )
+        else -> LanguageCatalog.dailyGrammarLesson(courseId) ?: dailyGrammarLesson("spanish")
     }
 
     fun practicePack(courseId: String): PracticePack {
@@ -612,7 +659,12 @@ object SampleContent {
                 GrammarExample("わたしは日本語を勉強しています。", "I am studying Japanese."),
                 GrammarExample("コーヒーをお願いします。", "Coffee, please."),
             )
-            else -> listOf(
+            "spanish" -> listOf(
+                GrammarExample("Hola, ¿cómo estás?", "Hello, how are you?"),
+                GrammarExample("Ayer fui al cine con mis amigos.", "Yesterday I went to the movies with my friends."),
+                GrammarExample("Me gustaría un café, por favor.", "I would like a coffee, please."),
+            )
+            else -> LanguageCatalog.pronunciationPhrases(courseId) ?: listOf(
                 GrammarExample("Hola, ¿cómo estás?", "Hello, how are you?"),
                 GrammarExample("Ayer fui al cine con mis amigos.", "Yesterday I went to the movies with my friends."),
                 GrammarExample("Me gustaría un café, por favor.", "I would like a coffee, please."),
@@ -625,7 +677,8 @@ object SampleContent {
             localeTag = when (courseId) {
                 "french" -> "fr-FR"
                 "japanese" -> "ja-JP"
-                else -> "es-ES"
+                "spanish" -> "es-ES"
+                else -> LanguageCatalog.localeTag(courseId) ?: courseById(courseId).localeTag
             },
         )
     }
@@ -663,7 +716,7 @@ object SampleContent {
                     "を marks the direct object.",
                 ),
             )
-            else -> listOf(
+            "spanish" -> listOf(
                 ExerciseQuestion(
                     "Choose the correct article: ___ casa",
                     listOf("la", "el", "los"),
@@ -677,6 +730,7 @@ object SampleContent {
                     "Nosotros takes -amos in the present: hablamos.",
                 ),
             )
+            else -> emptyList()
         }
         return (extras + lessonQuestions).distinctBy { it.prompt }
     }
@@ -707,7 +761,19 @@ object SampleContent {
                 VocabWord("はなす", "to speak"),
                 VocabWord("きょう", "today"),
             )
-            else -> listOf(
+            "spanish" -> listOf(
+                VocabWord("hola", "hello"),
+                VocabWord("gracias", "thank you"),
+                VocabWord("uno", "one"),
+                VocabWord("dos", "two"),
+                VocabWord("tres", "three"),
+                VocabWord("amigo", "friend"),
+                VocabWord("escuela", "school"),
+                VocabWord("comer", "to eat"),
+                VocabWord("hablar", "to speak"),
+                VocabWord("hoy", "today"),
+            )
+            else -> LanguageCatalog.dictionaryWords(courseId) ?: listOf(
                 VocabWord("hola", "hello"),
                 VocabWord("gracias", "thank you"),
                 VocabWord("uno", "one"),
@@ -726,7 +792,7 @@ object SampleContent {
     }
 
     fun courseById(id: String): LanguageCourse =
-        courses.firstOrNull { it.id == id } ?: courses.first()
+        allCourses.firstOrNull { it.id == id } ?: courses.first()
 
     fun courseLessons(courseId: String): List<CourseLesson> {
         val grammar = dailyGrammarLesson(courseId)
@@ -742,10 +808,15 @@ object SampleContent {
                 CourseLesson("jp-intro", 2, "Basic Introductions", "Introduce yourself with です sentences", "Beginner", false),
                 CourseLesson("jp-phrases", 3, "Common Phrases", "Useful everyday Japanese expressions", "Beginner", false),
             )
-            else -> listOf(
+            "spanish" -> listOf(
                 CourseLesson("es-everyday", 1, "Everyday Conversations", "Practice natural Spanish chat for daily life", "Intermediate", false),
                 CourseLesson("es-restaurant", 2, "Restaurant Vocabulary", "Order food and drinks with confidence", "Intermediate", false),
                 CourseLesson("es-travel", 3, "Travel Phrases", "Navigate airports, hotels, and transport", "Intermediate", false),
+            )
+            else -> listOf(
+                CourseLesson("${courseId}-greetings", 1, "Basic Greetings", "Say hello and introduce yourself politely", "Beginner", false),
+                CourseLesson("${courseId}-numbers", 2, "Numbers 1–10", "Count and use numbers in everyday phrases", "Beginner", false),
+                CourseLesson("${courseId}-phrases", 3, "Everyday Phrases", "Useful everyday expressions", "Beginner", false),
             )
         }
         return listOf(

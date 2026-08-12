@@ -159,7 +159,7 @@ fun ProfileScreen(
         GlassCard(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 CardTitle("Language Progress")
-                SampleContent.courses.forEach { course ->
+                SampleContent.visibleCourses(preferencesStore.selectedOptionalLanguageIds).forEach { course ->
                     val pct = progressStore.courseProgress(course.id)
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Row(

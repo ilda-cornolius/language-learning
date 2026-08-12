@@ -26,6 +26,7 @@ enum class Destination(
     Spanish("spanish", "Spanish Learning Dashboard", "Spanish", null),
     French("french", "French Learning Dashboard", "French", null),
     Japanese("japanese", "Japanese Learning Dashboard", "Japanese", null),
+    Dashboard("dashboard", "Language Learning Dashboard", "Dashboard", null),
     Vocabulary("vocabulary", "Vocabulary Builder", "Vocabulary", Icons.Filled.Book),
     Lessons("lessons", "Language Lessons", "Lessons", Icons.Filled.School),
     Conversation("conversation", "Conversation Practice", "Conversation", Icons.AutoMirrored.Filled.Chat),
@@ -57,7 +58,7 @@ enum class Destination(
         val settings = listOf(Profile, Preferences)
         val toolbar = listOf(DailyLesson, Practice, Challenges)
 
-        private val courseDashboards = setOf(Spanish, French, Japanese)
+        private val courseDashboards = setOf(Spanish, French, Japanese, Dashboard)
         private val practiceDestinations = setOf(
             Practice,
             QuickReview,
@@ -87,7 +88,8 @@ enum class Destination(
         fun forCourse(courseId: String): Destination = when (courseId) {
             "french" -> French
             "japanese" -> Japanese
-            else -> Spanish
+            "spanish" -> Spanish
+            else -> Dashboard
         }
 
         fun courseIdFor(destination: Destination): String? = when (destination) {
@@ -119,6 +121,7 @@ enum class Destination(
             MemoryMatch -> "$languageName Memory Match"
             GrammarSprint -> "$languageName Grammar Sprint"
             Lesson -> "$languageName Grammar Lesson"
+            Dashboard -> "$languageName Learning Dashboard"
             else -> destination.title
         }
     }

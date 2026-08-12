@@ -37,6 +37,9 @@ class PreferencesStore(context: Context) {
     var learnerSinceYear by mutableStateOf(preferences.getInt(KEY_LEARNER_SINCE, 2023))
         private set
 
+    var selectedOptionalLanguageIds by mutableStateOf(loadOptionalLanguageIds())
+        private set
+
     fun updateVoiceSpeed(value: String) {
         if (value !in SPEEDS) return
         preferences.edit().putString(KEY_VOICE_SPEED, value).apply()
@@ -74,6 +77,30 @@ class PreferencesStore(context: Context) {
         learnerSinceYear = year
     }
 
+    fun addOptionalLanguage(languageId: String) {
+        if (languageId !in SampleContent.optionalCourses.map { it.id }) return
+        val next = selectedOptionalLanguageIds + languageId
+        persistOptionalLanguageIds(next)
+    }
+
+    fun removeOptionalLanguage(languageId: String) {
+        val next = selectedOptionalLanguageIds - languageId
+        persistOptionalLanguageIds(next)
+        if (activeLanguageId == languageId) {
+            updateActiveLanguageId("spanish")
+        }
+    }
+
+    private fun loadOptionalLanguageIds(): Set<String> =
+        preferences.getStringSet(KEY_OPTIONAL_LANGUAGES, emptySet()).orEmpty()
+            .filter { id -> SampleContent.optionalCourses.any { it.id == id } }
+            .toSet()
+
+    private fun persistOptionalLanguageIds(ids: Set<String>) {
+        preferences.edit().putStringSet(KEY_OPTIONAL_LANGUAGES, ids).apply()
+        selectedOptionalLanguageIds = ids
+    }
+
     fun speechRate(): Float = when (voiceSpeed) {
         "Slow" -> 0.7f
         "Fast" -> 1.3f
@@ -89,6 +116,7 @@ class PreferencesStore(context: Context) {
         private const val KEY_ACTIVE_LANGUAGE = "active_language_id"
         private const val KEY_DISPLAY_NAME = "display_name"
         private const val KEY_LEARNER_SINCE = "learner_since_year"
+        private const val KEY_OPTIONAL_LANGUAGES = "optional_language_ids"
     }
 }
 

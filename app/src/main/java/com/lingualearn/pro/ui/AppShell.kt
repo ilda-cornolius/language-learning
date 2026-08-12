@@ -26,7 +26,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Circle
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Diamond
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.LocalFireDepartment
@@ -66,6 +68,7 @@ import com.lingualearn.pro.data.ProgressStore
 import com.lingualearn.pro.data.SampleContent
 import com.lingualearn.pro.ui.components.AeroBackground
 import com.lingualearn.pro.ui.components.Badge
+import com.lingualearn.pro.ui.components.BodyText
 import com.lingualearn.pro.ui.components.GlassCard
 import com.lingualearn.pro.ui.components.SectionLabel
 import com.lingualearn.pro.ui.screens.AssistantScreen
@@ -241,7 +244,13 @@ private fun LinguaLearnSignedInShell(
                             current = current,
                             activeLanguageId = activeLanguageId,
                             progressStore = progressStore,
+                            preferencesStore = preferencesStore,
                             onSelect = { navigate(it) },
+                            onSelectLanguage = { course ->
+                                activeLanguageId = course.id
+                                preferencesStore.updateActiveLanguageId(course.id)
+                                navigate(Destination.forCourse(course.id))
+                            },
                             modifier = Modifier
                                 .width(250.dp)
                                 .fillMaxHeight()
@@ -285,8 +294,15 @@ private fun LinguaLearnSignedInShell(
                                 current = current,
                                 activeLanguageId = activeLanguageId,
                                 progressStore = progressStore,
+                                preferencesStore = preferencesStore,
                                 onSelect = {
                                     navigate(it)
+                                    scope.launch { drawerState.close() }
+                                },
+                                onSelectLanguage = { course ->
+                                    activeLanguageId = course.id
+                                    preferencesStore.updateActiveLanguageId(course.id)
+                                    navigate(Destination.forCourse(course.id))
                                     scope.launch { drawerState.close() }
                                 },
                                 modifier = Modifier
@@ -399,9 +415,17 @@ private fun Sidebar(
     current: Destination,
     activeLanguageId: String,
     progressStore: ProgressStore,
+    preferencesStore: PreferencesStore,
     onSelect: (Destination) -> Unit,
+    onSelectLanguage: (LanguageCourse) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    var addingLanguage by remember { mutableStateOf(false) }
+    val visibleCourses = SampleContent.visibleCourses(preferencesStore.selectedOptionalLanguageIds)
+    val availableExtras = SampleContent.optionalCourses.filter {
+        it.id !in preferencesStore.selectedOptionalLanguageIds
+    }
+
     Column(
         modifier.padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp),
@@ -429,18 +453,61 @@ private fun Sidebar(
 
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             SectionLabel("My Languages")
-            SampleContent.courses.forEach { course ->
-                val destination = Destination.forCourse(course.id)
+            visibleCourses.forEach { course ->
                 val pct = progressStore.courseProgress(course.id)
                 SidebarRow(
                     label = course.name,
                     selected = course.id == activeLanguageId,
-                    onClick = { onSelect(destination) },
+                    onClick = { onSelectLanguage(course) },
                     leading = { Text(course.flag, style = MaterialTheme.typography.bodyMedium) },
                     trailing = {
                         Badge("$pct%", course.accent.copy(alpha = 0.85f))
                     },
                 )
+            }
+            SidebarRow(
+                label = if (addingLanguage) "Close" else "Add language",
+                selected = addingLanguage,
+                onClick = { addingLanguage = !addingLanguage },
+                leading = {
+                    Icon(
+                        if (addingLanguage) Icons.Filled.Close else Icons.Filled.Add,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
+                },
+            )
+            if (addingLanguage) {
+                if (availableExtras.isEmpty()) {
+                    BodyText("All extra languages are already added.", color = TextMuted)
+                } else {
+                    availableExtras.forEach { course ->
+                        SidebarRow(
+                            label = course.name,
+                            selected = false,
+                            onClick = {
+                                preferencesStore.addOptionalLanguage(course.id)
+                                onSelectLanguage(course)
+                                addingLanguage = false
+                            },
+                            leading = { Text(course.flag, style = MaterialTheme.typography.bodyMedium) },
+                        )
+                    }
+                }
+                val addedExtras = visibleCourses.filter { it.optional }
+                if (addedExtras.isNotEmpty()) {
+                    BodyText("Remove extra language", color = TextMuted)
+                    addedExtras.forEach { course ->
+                        SidebarRow(
+                            label = "Remove ${course.name}",
+                            selected = false,
+                            onClick = {
+                                preferencesStore.removeOptionalLanguage(course.id)
+                            },
+                            leading = { Text(course.flag, style = MaterialTheme.typography.bodyMedium) },
+                        )
+                    }
+                }
             }
         }
 
@@ -639,7 +706,7 @@ private fun ContentArea(
                     onNavigate(Destination.Practice)
                 },
             )
-            Destination.Spanish, Destination.French, Destination.Japanese -> {
+            Destination.Spanish, Destination.French, Destination.Japanese, Destination.Dashboard -> {
                 CourseDashboardScreen(
                     activeCourse,
                     progressStore.state,
@@ -785,7 +852,8 @@ private fun ContentArea(
         if (showWidgets) {
             val isCourseDashboard = current == Destination.Spanish ||
                 current == Destination.French ||
-                current == Destination.Japanese
+                current == Destination.Japanese ||
+                current == Destination.Dashboard
             val hideCalendarClock = current == Destination.Practice ||
                 current == Destination.QuickReview ||
                 current == Destination.GrammarDrills ||
@@ -866,7 +934,8 @@ private fun ContentArea(
 private fun WidgetsPanel(current: Destination, progress: ProgressState, modifier: Modifier = Modifier) {
     val isCourseDashboard = current == Destination.Spanish ||
         current == Destination.French ||
-        current == Destination.Japanese
+        current == Destination.Japanese ||
+        current == Destination.Dashboard
     val hideCalendarClock = current == Destination.Practice ||
         current == Destination.QuickReview ||
         current == Destination.GrammarDrills ||
