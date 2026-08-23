@@ -11,19 +11,22 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -33,14 +36,16 @@ import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.ApiException
 import com.lingualearn.pro.R
 import com.lingualearn.pro.data.CloudWordRepository
-import com.lingualearn.pro.ui.components.AeroBackground
-import com.lingualearn.pro.ui.components.AeroButton
 import com.lingualearn.pro.ui.components.BodyText
-import com.lingualearn.pro.ui.components.GlassCard
+import com.lingualearn.pro.ui.components.CinematicBackground
+import com.lingualearn.pro.ui.components.CinematicCommandButton
+import com.lingualearn.pro.ui.components.CinematicFadeIn
+import com.lingualearn.pro.ui.components.CinematicLogoFade
+import com.lingualearn.pro.ui.components.cinematicGlow
 import com.lingualearn.pro.ui.theme.TextMuted
 import com.lingualearn.pro.ui.theme.TextPrimary
-import com.lingualearn.pro.ui.theme.VistaAccent
 import com.lingualearn.pro.ui.theme.VistaBlue
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @Composable
@@ -49,6 +54,7 @@ fun TitleAuthScreen(onSignedIn: () -> Unit) {
     val scope = rememberCoroutineScope()
     var signingIn by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var phase by remember { mutableIntStateOf(0) }
 
     val googleSignInClient = remember(context) {
         val options = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
@@ -87,59 +93,89 @@ fun TitleAuthScreen(onSignedIn: () -> Unit) {
         }
     }
 
-    AeroBackground {
+    LaunchedEffect(Unit) {
+        delay(280)
+        phase = 1
+        delay(1100)
+        phase = 2
+        delay(900)
+        phase = 3
+        delay(850)
+        phase = 4
+    }
+
+    CinematicBackground {
         Box(
             Modifier
                 .fillMaxSize()
                 .safeDrawingPadding()
-                .padding(horizontal = 28.dp),
+                .padding(horizontal = 32.dp),
             contentAlignment = Alignment.Center,
         ) {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(20.dp),
+                verticalArrangement = Arrangement.spacedBy(18.dp),
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Image(
-                    painter = painterResource(R.drawable.ic_lingualearn_logo),
-                    contentDescription = "LinguaLearn Pro logo",
-                    modifier = Modifier.size(112.dp),
-                    contentScale = ContentScale.Fit,
-                )
-                Text(
-                    text = "LinguaLearn Pro",
-                    color = TextPrimary,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 40.sp,
-                    lineHeight = 46.sp,
-                    textAlign = TextAlign.Center,
-                    style = MaterialTheme.typography.headlineSmall.copy(
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 40.sp,
-                        lineHeight = 46.sp,
-                    ),
-                )
-                BodyText(
-                    text = "Learn languages with lessons, practice, and challenges — progress that follows you.",
-                    color = TextMuted,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                GlassCard(Modifier.fillMaxWidth()) {
-                    Column(
-                        Modifier.padding(20.dp),
-                        verticalArrangement = Arrangement.spacedBy(14.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
+                CinematicLogoFade(visible = phase >= 1) {
+                    Box(
+                        Modifier.cinematicGlow(Color(0x66F4FBFF), 48.dp),
+                        contentAlignment = Alignment.Center,
                     ) {
-                        AeroButton(
-                            text = if (signingIn) "Signing in…" else "Continue with Google",
+                        Image(
+                            painter = painterResource(R.drawable.ic_lumina_icon),
+                            contentDescription = "Lumina logo",
+                            modifier = Modifier.size(72.dp),
+                            contentScale = ContentScale.Fit,
+                        )
+                    }
+                }
+                CinematicFadeIn(visible = phase >= 2, durationMillis = 1600, rise = 10.dp) {
+                    Text(
+                        text = "LUMINA",
+                        color = TextPrimary,
+                        fontFamily = FontFamily.Serif,
+                        fontWeight = FontWeight.Light,
+                        fontSize = 48.sp,
+                        letterSpacing = 14.sp,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+                CinematicFadeIn(visible = phase >= 3, durationMillis = 1400, rise = 12.dp) {
+                    Text(
+                        text = "A light for every language.",
+                        color = TextMuted,
+                        fontFamily = FontFamily.Serif,
+                        fontWeight = FontWeight.Normal,
+                        fontSize = 16.sp,
+                        letterSpacing = 1.4.sp,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+                CinematicFadeIn(
+                    visible = phase >= 4,
+                    durationMillis = 1300,
+                    rise = 14.dp,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 28.dp),
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(14.dp),
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        val enabled = !signingIn
+                        CinematicCommandButton(
+                            text = if (signingIn) "Logging in" else "Log in",
                             onClick = {
-                                if (signingIn) return@AeroButton
                                 errorMessage = null
                                 signingIn = true
                                 signInLauncher.launch(googleSignInClient.signInIntent)
                             },
-                            color = VistaAccent,
-                            modifier = Modifier.fillMaxWidth(),
+                            enabled = enabled,
                         )
                         if (signingIn) {
                             BodyText("Connecting your Google account…", color = TextMuted)

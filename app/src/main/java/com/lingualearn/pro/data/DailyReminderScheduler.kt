@@ -28,7 +28,7 @@ object DailyReminderScheduler {
             "Daily practice reminders",
             NotificationManager.IMPORTANCE_DEFAULT,
         ).apply {
-            description = "Reminds you to practice on LinguaLearn"
+            description = "Reminds you to practice on Lumina"
         }
         manager.createNotificationChannel(channel)
     }
@@ -67,8 +67,8 @@ object DailyReminderScheduler {
         )
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.mipmap.ic_launcher)
-            .setContentTitle("LinguaLearn")
-            .setContentText("Time to practice on LinguaLearn")
+            .setContentTitle("Lumina")
+            .setContentText("Time to practice on Lumina")
             .setContentIntent(contentIntent)
             .setAutoCancel(true)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)

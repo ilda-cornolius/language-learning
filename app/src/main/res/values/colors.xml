@@ -5,4 +5,5 @@
     <color name="vista_blue">#FF1E6BA8</color>
     <color name="vista_yellow">#FFE6D54A</color>
     <color name="vista_accent">#FFFF6B1A</color>
+    <color name="lumina_icon_bg">#00000000</color>
 </resources>

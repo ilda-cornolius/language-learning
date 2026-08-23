@@ -149,8 +149,10 @@ object SampleContent {
     val allCourses: List<LanguageCourse>
         get() = courses + optionalCourses
 
-    fun visibleCourses(selectedOptionalIds: Set<String>): List<LanguageCourse> =
-        courses + optionalCourses.filter { it.id in selectedOptionalIds }
+    fun visibleCourses(selectedIds: Set<String>): List<LanguageCourse> {
+        val selected = allCourses.filter { it.id in selectedIds }
+        return selected.ifEmpty { courses }
+    }
 
     val dialogue = listOf(
         DialogueLine("A", VistaGreen, "¿Cómo estuvo tu fin de semana?", "How was your weekend?"),

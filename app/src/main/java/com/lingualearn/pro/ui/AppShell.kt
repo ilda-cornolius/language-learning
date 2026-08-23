@@ -4,9 +4,19 @@ import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.speech.tts.TextToSpeech
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -30,9 +40,11 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Circle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Diamond
-import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.automirrored.filled.Login
+import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.DrawerValue
@@ -44,6 +56,7 @@ import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -54,13 +67,20 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.common.api.ApiException
 import com.google.firebase.auth.FirebaseAuth
+import com.lingualearn.pro.R
 import com.lingualearn.pro.data.CloudWordRepository
 import com.lingualearn.pro.data.DailyReminderScheduler
 import com.lingualearn.pro.data.LanguageCourse
@@ -72,7 +92,9 @@ import com.lingualearn.pro.ui.components.AeroBackground
 import com.lingualearn.pro.ui.components.Badge
 import com.lingualearn.pro.ui.components.BodyText
 import com.lingualearn.pro.ui.components.GlassCard
+import com.lingualearn.pro.ui.components.LocalDarkMode
 import com.lingualearn.pro.ui.components.SectionLabel
+import com.lingualearn.pro.ui.components.selectionSpotlight
 import com.lingualearn.pro.ui.screens.AssistantScreen
 import com.lingualearn.pro.ui.screens.ChallengesScreen
 import com.lingualearn.pro.ui.screens.ConversationScreen
@@ -87,6 +109,7 @@ import com.lingualearn.pro.ui.screens.FlashcardsHubScreen
 import com.lingualearn.pro.ui.screens.GoogleToolsScreen
 import com.lingualearn.pro.ui.screens.GrammarDrillsScreen
 import com.lingualearn.pro.ui.screens.InstagramScreen
+import com.lingualearn.pro.ui.screens.LanguageOnboardingScreen
 import com.lingualearn.pro.ui.screens.GrammarLessonScreen
 import com.lingualearn.pro.ui.screens.GrammarSprintScreen
 import com.lingualearn.pro.ui.screens.ListeningScreen
@@ -122,6 +145,7 @@ fun LinguaLearnApp() {
     val progressStore = remember(context) { ProgressStore(context.applicationContext) }
     val preferencesStore = remember(context) { PreferencesStore(context.applicationContext) }
     var signedIn by remember { mutableStateOf(CloudWordRepository.isSignedIn) }
+    var sessionUid by remember { mutableStateOf(CloudWordRepository.uid) }
     var cloudDirty by remember { mutableStateOf(0) }
     var progressBound by remember { mutableStateOf(false) }
 
@@ -129,6 +153,7 @@ fun LinguaLearnApp() {
         val firebaseAuth = FirebaseAuth.getInstance()
         val listener = FirebaseAuth.AuthStateListener { auth ->
             signedIn = auth.currentUser != null
+            sessionUid = auth.currentUser?.uid
             if (auth.currentUser == null) progressBound = false
         }
         firebaseAuth.addAuthStateListener(listener)
@@ -140,9 +165,8 @@ fun LinguaLearnApp() {
         onDispose { progressStore.onChanged = null }
     }
 
-    LaunchedEffect(signedIn) {
-        if (!signedIn) return@LaunchedEffect
-        val userId = CloudWordRepository.uid ?: return@LaunchedEffect
+    LaunchedEffect(sessionUid) {
+        val userId = sessionUid ?: return@LaunchedEffect
         progressStore.bindUser(userId)
         runCatching { CloudWordRepository.loadProgress() }
             .onSuccess { snap -> progressStore.replaceState(snap.state, snap.awardIds) }
@@ -156,15 +180,37 @@ fun LinguaLearnApp() {
         runCatching { CloudWordRepository.saveProgress(state, awards) }
     }
 
-    if (!signedIn) {
-        TitleAuthScreen(onSignedIn = { signedIn = true })
-    } else {
-        LinguaLearnSignedInShell(
-            progressStore = progressStore,
-            preferencesStore = preferencesStore,
-        )
+    val stage = when {
+        !signedIn -> AppStage.Title
+        !preferencesStore.onboardingComplete -> AppStage.Onboarding
+        else -> AppStage.App
+    }
+
+    Box(Modifier.fillMaxSize().background(Color.Black)) {
+        AnimatedContent(
+            targetState = stage,
+            modifier = Modifier.fillMaxSize(),
+            transitionSpec = {
+                fadeIn(animationSpec = tween(1000, easing = FastOutSlowInEasing)) togetherWith
+                    fadeOut(animationSpec = tween(800, easing = FastOutSlowInEasing))
+            },
+            label = "lumina-stage",
+        ) { current ->
+            when (current) {
+                AppStage.Title -> TitleAuthScreen(onSignedIn = { signedIn = true })
+                AppStage.Onboarding -> LanguageOnboardingScreen(
+                    onFinished = { ids -> preferencesStore.completeOnboarding(ids) },
+                )
+                AppStage.App -> LinguaLearnSignedInShell(
+                    progressStore = progressStore,
+                    preferencesStore = preferencesStore,
+                )
+            }
+        }
     }
 }
+
+private enum class AppStage { Title, Onboarding, App }
 
 @Composable
 private fun LinguaLearnSignedInShell(
@@ -173,13 +219,46 @@ private fun LinguaLearnSignedInShell(
 ) {
     val context = LocalContext.current
     val progress = progressStore.state
-    var current by rememberSaveable { mutableStateOf(Destination.Lesson) }
+    var current by rememberSaveable { mutableStateOf(Destination.forCourse(preferencesStore.activeLanguageId)) }
     var activeLanguageId by rememberSaveable { mutableStateOf(preferencesStore.activeLanguageId) }
     val activeCourse = SampleContent.courseById(activeLanguageId)
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     var lessonTts by remember { mutableStateOf<TextToSpeech?>(null) }
     val localeTag = SampleContent.practicePack(activeCourse.id).localeTag
+    val googleSignInClient = remember(context) {
+        val options = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+            .requestIdToken(context.getString(R.string.default_web_client_id))
+            .requestEmail()
+            .requestProfile()
+            .build()
+        GoogleSignIn.getClient(context, options)
+    }
+    val logInLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult(),
+    ) { result ->
+        val idToken = runCatching {
+            GoogleSignIn.getSignedInAccountFromIntent(result.data)
+                .getResult(ApiException::class.java)
+                .idToken
+        }.getOrNull()
+        if (idToken == null) return@rememberLauncherForActivityResult
+        scope.launch {
+            runCatching { CloudWordRepository.signInWithGoogle(idToken) }
+        }
+    }
+
+    fun logIn() {
+        googleSignInClient.signOut().addOnCompleteListener {
+            logInLauncher.launch(googleSignInClient.signInIntent)
+        }
+    }
+
+    fun logOut() {
+        googleSignInClient.signOut().addOnCompleteListener {
+            CloudWordRepository.signOut()
+        }
+    }
 
     LaunchedEffect(Unit) {
         if (preferencesStore.dailyReminders) {
@@ -225,7 +304,9 @@ private fun LinguaLearnSignedInShell(
     }
 
     val screenTitle = Destination.titleFor(current, activeCourse.name)
+    val darkMode = preferencesStore.darkMode
 
+    CompositionLocalProvider(LocalDarkMode provides darkMode) {
     AeroBackground {
         BoxWithConstraints(Modifier.fillMaxSize()) {
             // Adaptive width classes for phones, foldables (Galaxy Fold), and tablets.
@@ -251,6 +332,8 @@ private fun LinguaLearnSignedInShell(
                         onNavigate = { navigate(it) },
                         onLessonSettings = { current = Destination.Preferences },
                         onLessonAudio = { playLessonAudio() },
+                        onLogIn = ::logIn,
+                        onLogOut = ::logOut,
                         onSelectLanguage = { course ->
                             activeLanguageId = course.id
                             preferencesStore.updateActiveLanguageId(course.id)
@@ -273,6 +356,8 @@ private fun LinguaLearnSignedInShell(
                         onNavigate = { navigate(it) },
                         onLessonSettings = { current = Destination.Preferences },
                         onLessonAudio = { playLessonAudio() },
+                        onLogIn = ::logIn,
+                        onLogOut = ::logOut,
                         onSelectLanguage = { course ->
                             activeLanguageId = course.id
                             preferencesStore.updateActiveLanguageId(course.id)
@@ -285,7 +370,7 @@ private fun LinguaLearnSignedInShell(
                         drawerState = drawerState,
                         drawerContent = {
                             ModalDrawerSheet(
-                                drawerContainerColor = Color(0xE60F3D5C),
+                                drawerContainerColor = if (darkMode) Color(0xF2080C14) else Color(0xE60F3D5C),
                                 drawerContentColor = TextPrimary,
                             ) {
                                 Sidebar(
@@ -302,6 +387,14 @@ private fun LinguaLearnSignedInShell(
                                         preferencesStore.updateActiveLanguageId(course.id)
                                         navigate(Destination.forCourse(course.id))
                                         scope.launch { drawerState.close() }
+                                    },
+                                    onLogIn = {
+                                        scope.launch { drawerState.close() }
+                                        logIn()
+                                    },
+                                    onLogOut = {
+                                        scope.launch { drawerState.close() }
+                                        logOut()
                                     },
                                     modifier = Modifier
                                         .fillMaxHeight()
@@ -328,6 +421,8 @@ private fun LinguaLearnSignedInShell(
                                 preferencesStore = preferencesStore,
                                 onNavigate = { navigate(it) },
                                 showWidgets = true,
+                                onLogIn = ::logIn,
+                                onLogOut = ::logOut,
                                 modifier = Modifier.weight(1f),
                             )
                             StatusBar()
@@ -336,6 +431,7 @@ private fun LinguaLearnSignedInShell(
                 }
             }
         }
+    }
     }
 }
 
@@ -355,6 +451,8 @@ private fun AdaptiveWideShell(
     onNavigate: (Destination) -> Unit,
     onLessonSettings: () -> Unit,
     onLessonAudio: () -> Unit,
+    onLogIn: () -> Unit,
+    onLogOut: () -> Unit,
     onSelectLanguage: (LanguageCourse) -> Unit,
 ) {
     Column(Modifier.safeDrawingPadding()) {
@@ -373,6 +471,8 @@ private fun AdaptiveWideShell(
                 preferencesStore = preferencesStore,
                 onSelect = onNavigate,
                 onSelectLanguage = onSelectLanguage,
+                onLogIn = onLogIn,
+                onLogOut = onLogOut,
                 modifier = Modifier
                     .width(sidebarWidth)
                     .fillMaxHeight()
@@ -390,6 +490,8 @@ private fun AdaptiveWideShell(
                     preferencesStore = preferencesStore,
                     onNavigate = onNavigate,
                     showWidgets = !showWidgetsColumn,
+                    onLogIn = onLogIn,
+                    onLogOut = onLogOut,
                     modifier = Modifier.weight(1f),
                 )
             }
@@ -430,17 +532,17 @@ private fun TitleBar(
             }
             Spacer(Modifier.width(4.dp))
         } else {
-            Icon(
-                Icons.Filled.Language,
-                contentDescription = null,
-                tint = TextPrimary,
+            Image(
+                painter = painterResource(R.drawable.ic_lumina_icon),
+                contentDescription = "Lumina",
                 modifier = Modifier
                     .padding(horizontal = 6.dp)
-                    .size(18.dp),
+                    .size(22.dp),
+                contentScale = ContentScale.Fit,
             )
         }
         Text(
-            text = "LinguaLearn Pro",
+            text = "Lumina",
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.Medium,
             color = TextPrimary,
@@ -487,12 +589,14 @@ private fun Sidebar(
     preferencesStore: PreferencesStore,
     onSelect: (Destination) -> Unit,
     onSelectLanguage: (LanguageCourse) -> Unit,
+    onLogIn: () -> Unit,
+    onLogOut: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var addingLanguage by remember { mutableStateOf(false) }
-    val visibleCourses = SampleContent.visibleCourses(preferencesStore.selectedOptionalLanguageIds)
-    val availableExtras = SampleContent.optionalCourses.filter {
-        it.id !in preferencesStore.selectedOptionalLanguageIds
+    val visibleCourses = SampleContent.visibleCourses(preferencesStore.selectedLanguageIds)
+    val availableExtras = SampleContent.allCourses.filter {
+        it.id !in preferencesStore.selectedLanguageIds
     }
 
     Column(
@@ -505,20 +609,31 @@ private fun Sidebar(
                 .padding(bottom = 4.dp),
             contentAlignment = Alignment.Center,
         ) {
-            Box(
-                Modifier
-                    .size(56.dp)
-                    .background(VistaAccent, CircleShape),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    Icons.Filled.Language,
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(28.dp),
-                )
-            }
+            Image(
+                painter = painterResource(R.drawable.ic_lumina_icon),
+                contentDescription = "Lumina",
+                modifier = Modifier.size(56.dp),
+                contentScale = ContentScale.Fit,
+            )
         }
+
+        val homeDestination = Destination.forCourse(activeLanguageId)
+        val onHome = current == Destination.Spanish ||
+            current == Destination.French ||
+            current == Destination.Japanese ||
+            current == Destination.Dashboard
+        SidebarRow(
+            label = "Home",
+            selected = onHome,
+            onClick = { onSelect(homeDestination) },
+            leading = {
+                Icon(
+                    Icons.Filled.Home,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                )
+            },
+        )
 
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             SectionLabel("My Languages")
@@ -548,14 +663,14 @@ private fun Sidebar(
             )
             if (addingLanguage) {
                 if (availableExtras.isEmpty()) {
-                    BodyText("All extra languages are already added.", color = TextMuted)
+                    BodyText("All languages are already added.", color = TextMuted)
                 } else {
                     availableExtras.forEach { course ->
                         SidebarRow(
                             label = course.name,
                             selected = false,
                             onClick = {
-                                preferencesStore.addOptionalLanguage(course.id)
+                                preferencesStore.addLanguage(course.id)
                                 onSelectLanguage(course)
                                 addingLanguage = false
                             },
@@ -563,15 +678,14 @@ private fun Sidebar(
                         )
                     }
                 }
-                val addedExtras = visibleCourses.filter { it.optional }
-                if (addedExtras.isNotEmpty()) {
-                    BodyText("Remove extra language", color = TextMuted)
-                    addedExtras.forEach { course ->
+                if (visibleCourses.size > 1) {
+                    BodyText("Remove language", color = TextMuted)
+                    visibleCourses.forEach { course ->
                         SidebarRow(
                             label = "Remove ${course.name}",
                             selected = false,
                             onClick = {
-                                preferencesStore.removeOptionalLanguage(course.id)
+                                preferencesStore.removeLanguage(course.id)
                             },
                             leading = { Text(course.flag, style = MaterialTheme.typography.bodyMedium) },
                         )
@@ -583,6 +697,33 @@ private fun Sidebar(
         SidebarGroup("Activities", Destination.activities, current, onSelect)
         SidebarGroup("Social Learning", Destination.social, onSelect = onSelect, current = current)
         SidebarGroup("Settings", Destination.settings, current, onSelect)
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            SectionLabel("Account")
+            SidebarRow(
+                label = "Log in",
+                selected = false,
+                onClick = onLogIn,
+                leading = {
+                    Icon(
+                        Icons.AutoMirrored.Filled.Login,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
+                },
+            )
+            SidebarRow(
+                label = "Log out",
+                selected = false,
+                onClick = onLogOut,
+                leading = {
+                    Icon(
+                        Icons.AutoMirrored.Filled.Logout,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
+                },
+            )
+        }
     }
 }
 
@@ -623,6 +764,7 @@ private fun SidebarRow(
         shape = RoundedCornerShape(8.dp),
         color = if (selected) GlassTileStrong else Color.Transparent,
         onClick = onClick,
+        selected = selected,
     ) {
         Row(
             Modifier.padding(horizontal = 10.dp, vertical = 9.dp),
@@ -677,6 +819,7 @@ private fun ToolbarChip(
     onClick: () -> Unit,
     icon: androidx.compose.ui.graphics.vector.ImageVector?,
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
     val content = @Composable {
         Row(
             Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
@@ -697,15 +840,25 @@ private fun ToolbarChip(
     if (selected) {
         GlassCard(
             shape = RoundedCornerShape(8.dp),
-            color = VistaAccent,
+            color = if (LocalDarkMode.current) {
+                Color(0x3322D3EE)
+            } else {
+                VistaAccent.copy(alpha = 0.42f)
+            },
             onClick = onClick,
+            selected = true,
             content = content,
         )
     } else {
-        // Unselected toolbar items are plain text — no frosted glass chip.
         Row(
             Modifier
-                .clickable(onClick = onClick)
+                .clip(RoundedCornerShape(8.dp))
+                .clickable(
+                    interactionSource = interactionSource,
+                    indication = null,
+                    onClick = onClick,
+                )
+                .selectionSpotlight(selected = false, interactionSource = interactionSource)
                 .padding(horizontal = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -740,6 +893,8 @@ private fun ContentArea(
     preferencesStore: PreferencesStore,
     onNavigate: (Destination) -> Unit,
     showWidgets: Boolean,
+    onLogIn: () -> Unit,
+    onLogOut: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val today = ProgressStore.todayKey()
@@ -777,10 +932,15 @@ private fun ContentArea(
             )
             Destination.Spanish, Destination.French, Destination.Japanese, Destination.Dashboard -> {
                 CourseDashboardScreen(
-                    activeCourse,
-                    progressStore.state,
-                    progressStore,
+                    course = activeCourse,
+                    progress = progressStore.state,
+                    displayName = CloudWordRepository.userDisplayName ?: preferencesStore.displayName,
+                    photoUrl = CloudWordRepository.userPhotoUrl,
+                    preferencesStore = preferencesStore,
                     onNavigate = onNavigate,
+                    onFlashcardSessionComplete = { reviews ->
+                        if (reviews >= 5) awardDaily("flashcards", 40)
+                    },
                 )
             }
             Destination.Vocabulary -> VocabularyScreen(
@@ -821,6 +981,8 @@ private fun ContentArea(
                 progressStore = progressStore,
                 preferencesStore = preferencesStore,
                 courseName = activeCourse.name,
+                onLogIn = onLogIn,
+                onLogOut = onLogOut,
             )
             Destination.Preferences -> PreferencesScreen(preferencesStore)
             Destination.DailyLesson -> DailyGrammarLessonScreen(

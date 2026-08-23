@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -27,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -40,6 +42,7 @@ import com.lingualearn.pro.data.PhotoOfTheDayRepository
 import com.lingualearn.pro.data.ProgressState
 import com.lingualearn.pro.ui.components.AeroProgressBar
 import com.lingualearn.pro.ui.components.GlassCard
+import com.lingualearn.pro.ui.components.LocalDarkMode
 import com.lingualearn.pro.ui.theme.TextPrimary
 import com.lingualearn.pro.ui.theme.TextSecondary
 import com.lingualearn.pro.ui.theme.VistaAccent
@@ -58,53 +61,130 @@ fun CalendarWidget(modifier: Modifier = Modifier) {
         "July", "August", "September", "October", "November", "December",
     )
     val days = listOf("Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday")
+    val darkMode = LocalDarkMode.current
+    val monthLabel = "${months[now.get(Calendar.MONTH)]} ${now.get(Calendar.YEAR)}"
+    val dayNumber = now.get(Calendar.DAY_OF_MONTH).toString()
+    val weekday = days[now.get(Calendar.DAY_OF_WEEK) - 1]
 
-    GlassCard(modifier.fillMaxWidth(), color = VistaAccent) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Box(
-                Modifier
-                    .fillMaxWidth()
-                    .background(Brush.horizontalGradient(listOf(Color(0xFFC2410C), VistaAccent)))
-                    .padding(vertical = 4.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = "${months[now.get(Calendar.MONTH)]} ${now.get(Calendar.YEAR)}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Color.White,
+    if (darkMode) {
+        // Night Frutiger Aero gadget: frosted aqua glass, specular sheen, glow.
+        GlassCard(
+            modifier.fillMaxWidth(),
+            color = Color(0x6638BDF8),
+        ) {
+            Box {
+                Box(
+                    Modifier
+                        .matchParentSize()
+                        .background(
+                            Brush.verticalGradient(
+                                0f to Color(0x66FFFFFF),
+                                0.16f to Color(0x3382F7FF),
+                                0.42f to Color(0x2214B8A6),
+                                1f to Color(0x66082F4A),
+                            ),
+                        ),
                 )
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Box(
+                        Modifier
+                            .fillMaxWidth()
+                            .background(
+                                Brush.verticalGradient(
+                                    listOf(Color(0xAAFFFFFF), Color(0x6622D3EE), Color(0x332ABBC4)),
+                                ),
+                            )
+                            .padding(vertical = 5.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = monthLabel,
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                shadow = Shadow(Color(0x88FFFFFF), Offset(0f, 1f), 6f),
+                            ),
+                            color = Color.White,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
+                    Column(
+                        Modifier.padding(vertical = 10.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Text(
+                            text = dayNumber,
+                            style = MaterialTheme.typography.headlineSmall.copy(
+                                fontSize = MaterialTheme.typography.headlineSmall.fontSize * 1.8f,
+                                shadow = Shadow(Color(0xAA7DD3FC), Offset(0f, 2f), 12f),
+                            ),
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
+                        )
+                        Text(
+                            text = weekday,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color(0xE6E0F9FF),
+                        )
+                    }
+                }
             }
-            Column(
-                Modifier.padding(vertical = 10.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                Text(
-                    text = now.get(Calendar.DAY_OF_MONTH).toString(),
-                    style = MaterialTheme.typography.headlineSmall.copy(fontSize = MaterialTheme.typography.headlineSmall.fontSize * 1.8f),
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White,
-                )
-                Text(
-                    text = days[now.get(Calendar.DAY_OF_WEEK) - 1],
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Color(0xE6FFFFFF),
-                )
+        }
+    } else {
+        GlassCard(modifier.fillMaxWidth(), color = VistaAccent) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .background(Brush.horizontalGradient(listOf(Color(0xFFC2410C), VistaAccent)))
+                        .padding(vertical = 4.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = monthLabel,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.White,
+                    )
+                }
+                Column(
+                    Modifier.padding(vertical = 10.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Text(
+                        text = dayNumber,
+                        style = MaterialTheme.typography.headlineSmall.copy(
+                            fontSize = MaterialTheme.typography.headlineSmall.fontSize * 1.8f,
+                        ),
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                    )
+                    Text(
+                        text = weekday,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color(0xE6FFFFFF),
+                    )
+                }
             }
         }
     }
 }
 
 @Composable
-fun DailyProgressWidget(progress: ProgressState, modifier: Modifier = Modifier) {
-    GlassCard(modifier.fillMaxWidth()) {
+fun DailyProgressWidget(
+    progress: ProgressState,
+    modifier: Modifier = Modifier,
+    framed: Boolean = true,
+) {
+    val body = @Composable {
         Column(
-            Modifier.padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            Modifier.then(
+                if (framed) Modifier.fillMaxHeight().padding(14.dp) else Modifier
+            ),
+            verticalArrangement = Arrangement.spacedBy(if (framed) 10.dp else 6.dp, Alignment.CenterVertically),
         ) {
             Text(
                 text = "Daily Progress",
-                style = MaterialTheme.typography.titleMedium,
+                style = if (framed) MaterialTheme.typography.titleMedium else MaterialTheme.typography.bodyMedium,
                 color = TextPrimary,
+                fontWeight = FontWeight.SemiBold,
             )
             ProgressRow(
                 "Level ${progress.level}",
@@ -119,6 +199,11 @@ fun DailyProgressWidget(progress: ProgressState, modifier: Modifier = Modifier) 
                 VistaBlue,
             )
         }
+    }
+    if (framed) {
+        GlassCard(modifier.fillMaxWidth()) { body() }
+    } else {
+        Box(modifier.fillMaxWidth()) { body() }
     }
 }
 

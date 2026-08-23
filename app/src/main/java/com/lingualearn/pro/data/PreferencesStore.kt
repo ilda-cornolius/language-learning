@@ -24,6 +24,9 @@ class PreferencesStore(context: Context) {
     var offlineMode by mutableStateOf(preferences.getBoolean(KEY_OFFLINE_MODE, false))
         private set
 
+    var darkMode by mutableStateOf(preferences.getBoolean(KEY_DARK_MODE, true))
+        private set
+
     var activeLanguageId by mutableStateOf(
         preferences.getString(KEY_ACTIVE_LANGUAGE, "spanish") ?: "spanish",
     )
@@ -38,6 +41,14 @@ class PreferencesStore(context: Context) {
         private set
 
     var selectedOptionalLanguageIds by mutableStateOf(loadOptionalLanguageIds())
+        private set
+
+    var selectedLanguageIds by mutableStateOf(loadSelectedLanguageIds())
+        private set
+
+    var onboardingComplete by mutableStateOf(
+        preferences.getBoolean(KEY_ONBOARDING_COMPLETE, false),
+    )
         private set
 
     fun updateVoiceSpeed(value: String) {
@@ -61,6 +72,11 @@ class PreferencesStore(context: Context) {
         offlineMode = enabled
     }
 
+    fun updateDarkMode(enabled: Boolean) {
+        preferences.edit().putBoolean(KEY_DARK_MODE, enabled).apply()
+        darkMode = enabled
+    }
+
     fun updateActiveLanguageId(languageId: String) {
         preferences.edit().putString(KEY_ACTIVE_LANGUAGE, languageId).apply()
         activeLanguageId = languageId
@@ -78,17 +94,36 @@ class PreferencesStore(context: Context) {
     }
 
     fun addOptionalLanguage(languageId: String) {
-        if (languageId !in SampleContent.optionalCourses.map { it.id }) return
-        val next = selectedOptionalLanguageIds + languageId
-        persistOptionalLanguageIds(next)
+        addLanguage(languageId)
+    }
+
+    fun addLanguage(languageId: String) {
+        if (SampleContent.allCourses.none { it.id == languageId }) return
+        persistSelectedLanguageIds(selectedLanguageIds + languageId)
     }
 
     fun removeOptionalLanguage(languageId: String) {
-        val next = selectedOptionalLanguageIds - languageId
-        persistOptionalLanguageIds(next)
+        removeLanguage(languageId)
+    }
+
+    fun removeLanguage(languageId: String) {
+        val next = selectedLanguageIds - languageId
+        if (next.isEmpty()) return
+        persistSelectedLanguageIds(next)
         if (activeLanguageId == languageId) {
-            updateActiveLanguageId("spanish")
+            updateActiveLanguageId(next.first())
         }
+    }
+
+    fun completeOnboarding(languageIds: Set<String>) {
+        val ids = languageIds.filter { id -> SampleContent.allCourses.any { it.id == id } }.toSet()
+        if (ids.isEmpty()) return
+        persistSelectedLanguageIds(ids)
+        if (activeLanguageId !in ids) {
+            updateActiveLanguageId(ids.first())
+        }
+        preferences.edit().putBoolean(KEY_ONBOARDING_COMPLETE, true).apply()
+        onboardingComplete = true
     }
 
     private fun loadOptionalLanguageIds(): Set<String> =
@@ -96,9 +131,22 @@ class PreferencesStore(context: Context) {
             .filter { id -> SampleContent.optionalCourses.any { it.id == id } }
             .toSet()
 
-    private fun persistOptionalLanguageIds(ids: Set<String>) {
-        preferences.edit().putStringSet(KEY_OPTIONAL_LANGUAGES, ids).apply()
-        selectedOptionalLanguageIds = ids
+    private fun loadSelectedLanguageIds(): Set<String> {
+        val stored = preferences.getStringSet(KEY_SELECTED_LANGUAGES, null)
+        if (stored != null) {
+            return stored.filter { id -> SampleContent.allCourses.any { it.id == id } }.toSet()
+        }
+        return SampleContent.courses.map { it.id }.toSet() + loadOptionalLanguageIds()
+    }
+
+    private fun persistSelectedLanguageIds(ids: Set<String>) {
+        val optionalIds = ids.filter { id -> SampleContent.optionalCourses.any { it.id == id } }.toSet()
+        preferences.edit()
+            .putStringSet(KEY_SELECTED_LANGUAGES, ids)
+            .putStringSet(KEY_OPTIONAL_LANGUAGES, optionalIds)
+            .apply()
+        selectedLanguageIds = ids
+        selectedOptionalLanguageIds = optionalIds
     }
 
     fun speechRate(): Float = when (voiceSpeed) {
@@ -113,10 +161,13 @@ class PreferencesStore(context: Context) {
         private const val KEY_SOUND_EFFECTS = "sound_effects"
         private const val KEY_DAILY_REMINDERS = "daily_reminders"
         private const val KEY_OFFLINE_MODE = "offline_mode"
+        private const val KEY_DARK_MODE = "dark_mode"
         private const val KEY_ACTIVE_LANGUAGE = "active_language_id"
         private const val KEY_DISPLAY_NAME = "display_name"
         private const val KEY_LEARNER_SINCE = "learner_since_year"
         private const val KEY_OPTIONAL_LANGUAGES = "optional_language_ids"
+        private const val KEY_SELECTED_LANGUAGES = "selected_language_ids"
+        private const val KEY_ONBOARDING_COMPLETE = "onboarding_complete"
     }
 }
 

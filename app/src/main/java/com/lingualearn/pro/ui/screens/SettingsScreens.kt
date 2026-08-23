@@ -26,9 +26,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
-import com.google.android.gms.auth.api.signin.GoogleSignIn
-import com.google.android.gms.auth.api.signin.GoogleSignInOptions
-import com.lingualearn.pro.R
 import com.lingualearn.pro.data.CloudWordRepository
 import com.lingualearn.pro.data.DailyReminderScheduler
 import com.lingualearn.pro.data.PreferencesStore
@@ -56,8 +53,9 @@ fun ProfileScreen(
     progressStore: ProgressStore,
     preferencesStore: PreferencesStore,
     courseName: String,
+    onLogIn: () -> Unit,
+    onLogOut: () -> Unit,
 ) {
-    val context = LocalContext.current
     var editing by remember { mutableStateOf(false) }
     var draftName by remember(preferencesStore.displayName) {
         mutableStateOf(preferencesStore.displayName)
@@ -66,80 +64,74 @@ fun ProfileScreen(
     val googleEmail = CloudWordRepository.userEmail
     val googlePhotoUrl = CloudWordRepository.userPhotoUrl
     val avatarName = googleName ?: preferencesStore.displayName
-    val googleSignInClient = remember(context) {
-        val options = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-            .requestIdToken(context.getString(R.string.default_web_client_id))
-            .requestEmail()
-            .requestProfile()
-            .build()
-        GoogleSignIn.getClient(context, options)
-    }
 
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            ProfileAvatar(
+                name = avatarName,
+                photoUrl = googlePhotoUrl,
+                size = 72.dp,
+            )
+            Column(Modifier.padding(start = 16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                if (editing) {
+                    GlassTextField(
+                        value = draftName,
+                        onValueChange = { draftName = it },
+                        placeholder = "Display name",
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        AeroButton(
+                            text = "Save",
+                            color = VistaGreen,
+                            onClick = {
+                                preferencesStore.updateDisplayName(draftName)
+                                editing = false
+                            },
+                        )
+                        AeroButton(
+                            text = "Cancel",
+                            color = Color(0xFF526777),
+                            onClick = {
+                                draftName = preferencesStore.displayName
+                                editing = false
+                            },
+                        )
+                    }
+                } else {
+                    Text(
+                        text = avatarName,
+                        style = MaterialTheme.typography.titleLarge,
+                        color = TextPrimary,
+                    )
+                    googleEmail?.let {
+                        BodyText(it, color = TextMuted)
+                    }
+                    BodyText("$courseName Learner since ${preferencesStore.learnerSinceYear}")
+                    AeroButton(
+                        text = "Edit name",
+                        color = VistaAccent,
+                        onClick = { editing = true },
+                    )
+                }
+            }
+        }
         GlassCard(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    ProfileAvatar(
-                        name = avatarName,
-                        photoUrl = googlePhotoUrl,
-                        size = 72.dp,
-                    )
-                    Column(Modifier.padding(start = 16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        if (editing) {
-                            GlassTextField(
-                                value = draftName,
-                                onValueChange = { draftName = it },
-                                placeholder = "Display name",
-                                modifier = Modifier.fillMaxWidth(),
-                            )
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                AeroButton(
-                                    text = "Save",
-                                    color = VistaGreen,
-                                    onClick = {
-                                        preferencesStore.updateDisplayName(draftName)
-                                        editing = false
-                                    },
-                                )
-                                AeroButton(
-                                    text = "Cancel",
-                                    color = Color(0xFF526777),
-                                    onClick = {
-                                        draftName = preferencesStore.displayName
-                                        editing = false
-                                    },
-                                )
-                            }
-                        } else {
-                            Text(
-                                text = avatarName,
-                                style = MaterialTheme.typography.titleLarge,
-                                color = TextPrimary,
-                            )
-                            googleEmail?.let {
-                                BodyText(it, color = TextMuted)
-                            }
-                            BodyText("$courseName Learner since ${preferencesStore.learnerSinceYear}")
-                            AeroButton(
-                                text = "Edit name",
-                                color = VistaAccent,
-                                onClick = { editing = true },
-                            )
-                        }
-                    }
-                }
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     StatTile("Total XP", progress.totalXp.toString(), Modifier.weight(1f))
                     StatTile("Lessons Completed", progress.lessonsCompleted.toString(), Modifier.weight(1f))
                 }
                 AeroButton(
-                    text = "Sign out",
+                    text = "Log in",
+                    color = VistaAccent,
+                    onClick = onLogIn,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                AeroButton(
+                    text = "Log out",
                     color = VistaBlue,
-                    onClick = {
-                        googleSignInClient.signOut().addOnCompleteListener {
-                            CloudWordRepository.signOut()
-                        }
-                    },
+                    onClick = onLogOut,
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
@@ -159,7 +151,7 @@ fun ProfileScreen(
         GlassCard(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 CardTitle("Language Progress")
-                SampleContent.visibleCourses(preferencesStore.selectedOptionalLanguageIds).forEach { course ->
+                SampleContent.visibleCourses(preferencesStore.selectedLanguageIds).forEach { course ->
                     val pct = progressStore.courseProgress(course.id)
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Row(
@@ -232,6 +224,23 @@ fun PreferencesScreen(preferencesStore: PreferencesStore) {
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        GlassCard(Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                CardTitle("Appearance")
+                ToggleRow("Dark mode", preferencesStore.darkMode) {
+                    preferencesStore.updateDarkMode(it)
+                }
+                BodyText(
+                    if (preferencesStore.darkMode) {
+                        "Night palette with a soft glow — matches the Lumina title screen."
+                    } else {
+                        "Bright Aero wallpaper."
+                    },
+                    color = TextMuted,
+                )
+            }
+        }
+
         GlassCard(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 CardTitle("Audio Settings")

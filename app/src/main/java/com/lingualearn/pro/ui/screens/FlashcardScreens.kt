@@ -10,6 +10,7 @@ import android.speech.tts.TextToSpeech
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -212,6 +213,33 @@ fun FlashcardStudyScreen(
     onBack: () -> Unit,
     onSessionComplete: (reviews: Int) -> Unit = {},
 ) {
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        AeroButton(
+            "Back to Flashcards",
+            onClick = onBack,
+            color = Color(0xFF526777),
+            leadingIcon = { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) },
+        )
+        FlashcardStudyModule(
+            course = course,
+            preferencesStore = preferencesStore,
+            onEmptyAction = onBack,
+            onEmptyActionLabel = "Back",
+            onSessionComplete = onSessionComplete,
+        )
+    }
+}
+
+@Composable
+fun FlashcardStudyModule(
+    course: LanguageCourse,
+    preferencesStore: PreferencesStore,
+    onEmptyAction: () -> Unit,
+    onEmptyActionLabel: String = "Open deck",
+    onSessionComplete: (reviews: Int) -> Unit = {},
+    modifier: Modifier = Modifier,
+    framed: Boolean = true,
+) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var queue by remember { mutableStateOf<List<Flashcard>>(emptyList()) }
@@ -222,8 +250,11 @@ fun FlashcardStudyScreen(
     val localeTag = SampleContent.practicePack(course.id).localeTag
 
     LaunchedEffect(course.id) {
+        FlashcardRepository.ensureDefaultDeck(context, course.id)
         queue = FlashcardRepository.dueCards(context, course.id)
         loaded = true
+        revealed = false
+        reviews = 0
     }
 
     DisposableEffect(context, localeTag, preferencesStore.voiceSpeed) {
@@ -255,32 +286,24 @@ fun FlashcardStudyScreen(
         }
     }
 
-    AeroButton(
-        "Back to Flashcards",
-        onClick = {
-            if (reviews >= 5) onSessionComplete(reviews)
-            onBack()
-        },
-        color = Color(0xFF526777),
-        leadingIcon = { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) },
-    )
-
-    GlassCard(Modifier.fillMaxWidth()) {
+    val body = @Composable {
         Column(
             Modifier
                 .fillMaxWidth()
-                .padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+                .padding(if (framed) 20.dp else 2.dp),
+            verticalArrangement = Arrangement.spacedBy(if (framed) 16.dp else 10.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Text(
-                text = "Study session",
-                color = TextPrimary,
-                fontWeight = FontWeight.Bold,
-                fontSize = 28.sp,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth(),
-            )
+            if (framed) {
+                Text(
+                    text = "Study session",
+                    color = TextPrimary,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 28.sp,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
             if (!loaded) {
                 BodyText(
                     "Loading due cards…",
@@ -302,8 +325,8 @@ fun FlashcardStudyScreen(
                     modifier = Modifier.fillMaxWidth(),
                 )
                 AeroButton(
-                    "Back",
-                    onClick = onBack,
+                    onEmptyActionLabel,
+                    onClick = onEmptyAction,
                     color = course.accent,
                     modifier = Modifier.fillMaxWidth(0.7f),
                     contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp),
@@ -315,12 +338,15 @@ fun FlashcardStudyScreen(
                     "${queue.size} due remaining · $reviews reviewed",
                     course.accent.copy(alpha = 0.65f),
                 )
-                GlassTile(Modifier.fillMaxWidth(), color = GlassTileStrong) {
+                val cardFace = @Composable {
                     Column(
                         Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 24.dp, vertical = 28.dp),
-                        verticalArrangement = Arrangement.spacedBy(14.dp),
+                            .padding(
+                                horizontal = if (framed) 24.dp else 8.dp,
+                                vertical = if (framed) 28.dp else 12.dp,
+                            ),
+                        verticalArrangement = Arrangement.spacedBy(if (framed) 14.dp else 8.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
                         Text(
@@ -335,8 +361,8 @@ fun FlashcardStudyScreen(
                             text = card.front,
                             color = TextPrimary,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 36.sp,
-                            lineHeight = 42.sp,
+                            fontSize = if (framed) 36.sp else 30.sp,
+                            lineHeight = if (framed) 42.sp else 36.sp,
                             textAlign = TextAlign.Center,
                             modifier = Modifier.fillMaxWidth(),
                         )
@@ -370,6 +396,13 @@ fun FlashcardStudyScreen(
                             }
                         }
                     }
+                }
+                if (framed) {
+                    GlassTile(Modifier.fillMaxWidth(), color = GlassTileStrong) {
+                        cardFace()
+                    }
+                } else {
+                    cardFace()
                 }
                 val studyButtonPadding = PaddingValues(horizontal = 18.dp, vertical = 16.dp)
                 val studyButtonStyle = MaterialTheme.typography.titleMedium
@@ -453,6 +486,11 @@ fun FlashcardStudyScreen(
                 }
             }
         }
+    }
+    if (framed) {
+        GlassCard(modifier.fillMaxWidth()) { body() }
+    } else {
+        Box(modifier.fillMaxWidth()) { body() }
     }
 }
 
