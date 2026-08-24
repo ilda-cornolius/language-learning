@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Lumina · Support &amp; feedback</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="wrap">
+    <p class="eyebrow">Lumina</p>
+    <div class="brand">
+      <h1>Support &amp; feedback</h1>
+    </div>
+    <p class="lede">
+      Language learning for Android. Package name <code>com.lingualearn.pro</code>.
+    </p>
+    <nav>
+      <a href="index.html">Feedback</a>
+      <a href="privacy.html">Privacy policy</a>
+    </nav>
+
+    <section class="card">
+      <h2>Send feedback</h2>
+      <p class="lede">Bugs, ideas, and anything that would make Lumina better.</p>
+      <form id="feedback-form">
+        <label for="name">Name</label>
+        <input id="name" name="name" autocomplete="name" />
+
+        <label for="email">Email</label>
+        <input id="email" name="email" type="email" autocomplete="email" required />
+
+        <label for="kind">Type</label>
+        <select id="kind" name="kind">
+          <option value="Feedback">General feedback</option>
+          <option value="Bug">Bug</option>
+          <option value="Idea">Feature idea</option>
+        </select>
+
+        <label for="message">Message</label>
+        <textarea id="message" name="message" required placeholder="What happened, or what should we add?"></textarea>
+
+        <button type="submit">Open feedback draft</button>
+      </form>
+      <p class="note">
+        This opens a GitHub issue draft with your message filled in. Submit it there and we’ll see it.
+        You need a free GitHub account to send it.
+      </p>
+    </section>
+
+    <p class="meta">Lumina is listed on Google Play as package <code>com.lingualearn.pro</code>.</p>
+  </main>
+  <script>
+    const repo = "https://github.com/ilda-cornolius/language-learning/issues/new";
+    document.getElementById("feedback-form").addEventListener("submit", (event) => {
+      event.preventDefault();
+      const name = document.getElementById("name").value.trim() || "Anonymous";
+      const email = document.getElementById("email").value.trim();
+      const kind = document.getElementById("kind").value;
+      const message = document.getElementById("message").value.trim();
+      const title = `${kind}: ${message.slice(0, 72) || "Lumina feedback"}`;
+      const body = [
+        `**From:** ${name}`,
+        `**Email:** ${email}`,
+        `**Type:** ${kind}`,
+        "",
+        message,
+      ].join("\n");
+      const url = `${repo}?title=${encodeURIComponent(title)}&body=${encodeURIComponent(body)}`;
+      window.location.href = url;
+    });
+  </script>
+</body>
+</html>
