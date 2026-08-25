@@ -77,11 +77,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.google.android.gms.auth.api.signin.GoogleSignIn
-import com.google.android.gms.auth.api.signin.GoogleSignInOptions
-import com.google.android.gms.common.api.ApiException
 import com.google.firebase.auth.FirebaseAuth
 import com.lingualearn.pro.R
 import com.lingualearn.pro.data.CloudWordRepository
+import com.lingualearn.pro.data.GoogleSignInHelper
 import com.lingualearn.pro.data.DailyReminderScheduler
 import com.lingualearn.pro.data.LanguageCourse
 import com.lingualearn.pro.data.PreferencesStore
@@ -122,6 +121,7 @@ import com.lingualearn.pro.ui.screens.QuickReviewScreen
 import com.lingualearn.pro.ui.screens.SpeedRoundScreen
 import com.lingualearn.pro.ui.screens.TitleAuthScreen
 import com.lingualearn.pro.ui.screens.VocabularyScreen
+import com.lingualearn.pro.ui.screens.VocabPinballScreen
 import com.lingualearn.pro.ui.screens.WritingScreen
 import com.lingualearn.pro.ui.theme.GlassTileStrong
 import com.lingualearn.pro.ui.theme.TextMuted
@@ -227,22 +227,13 @@ private fun LinguaLearnSignedInShell(
     var lessonTts by remember { mutableStateOf<TextToSpeech?>(null) }
     val localeTag = SampleContent.practicePack(activeCourse.id).localeTag
     val googleSignInClient = remember(context) {
-        val options = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-            .requestIdToken(context.getString(R.string.default_web_client_id))
-            .requestEmail()
-            .requestProfile()
-            .build()
-        GoogleSignIn.getClient(context, options)
+        GoogleSignIn.getClient(context, GoogleSignInHelper.options(context))
     }
     val logInLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult(),
     ) { result ->
-        val idToken = runCatching {
-            GoogleSignIn.getSignedInAccountFromIntent(result.data)
-                .getResult(ApiException::class.java)
-                .idToken
-        }.getOrNull()
-        if (idToken == null) return@rememberLauncherForActivityResult
+        val idToken = runCatching { GoogleSignInHelper.idTokenFromResult(result.data) }
+            .getOrNull() ?: return@rememberLauncherForActivityResult
         scope.launch {
             runCatching { CloudWordRepository.signInWithGoogle(idToken) }
         }
@@ -800,7 +791,8 @@ private fun LanguageToolbar(
         Destination.toolbar.forEach { destination ->
             ToolbarChip(
                 label = destination.shortLabel,
-                selected = current == destination,
+                selected = current == destination ||
+                    (destination == Destination.Challenges && Destination.isQuestDestination(current)),
                 onClick = { onSelect(destination) },
                 icon = destination.icon,
             )
@@ -922,6 +914,17 @@ private fun ContentArea(
     val showDestinationPhoto = showWidgets && showsDestinationPhoto(current)
 
     Column(modifier.fillMaxWidth()) {
+        if (Destination.isArcadePlay(current)) {
+            VocabPinballScreen(
+                course = activeCourse,
+                progressStore = progressStore,
+                onBack = { onNavigate(Destination.Challenges) },
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .padding(start = 12.dp, end = 12.dp, top = 12.dp, bottom = 8.dp),
+            )
+        } else {
         Column(
             Modifier
                 .weight(1f)
@@ -1071,6 +1074,7 @@ private fun ContentArea(
                 onSpeedRound = { onNavigate(Destination.SpeedRound) },
                 onMemoryMatch = { onNavigate(Destination.MemoryMatch) },
                 onGrammarSprint = { onNavigate(Destination.GrammarSprint) },
+                onPinball = { onNavigate(Destination.VocabPinball) },
             )
             Destination.SpeedRound -> SpeedRoundScreen(
                 activeCourse,
@@ -1087,6 +1091,7 @@ private fun ContentArea(
                 progressStore,
                 onBack = { onNavigate(Destination.Challenges) },
             )
+            Destination.VocabPinball -> Unit
         }
 
         if (showWidgets) {
@@ -1103,6 +1108,7 @@ private fun ContentArea(
                 current == Destination.SpeedRound ||
                 current == Destination.MemoryMatch ||
                 current == Destination.GrammarSprint ||
+                current == Destination.VocabPinball ||
                 current == Destination.DailyLesson ||
                 current == Destination.Assistant ||
                 current == Destination.Lesson ||
@@ -1129,6 +1135,7 @@ private fun ContentArea(
                 current == Destination.SpeedRound ||
                 current == Destination.MemoryMatch ||
                 current == Destination.GrammarSprint ||
+                current == Destination.VocabPinball ||
                 current == Destination.DailyLesson ||
                 current == Destination.Assistant ||
                 current == Destination.Lesson ||
@@ -1154,6 +1161,7 @@ private fun ContentArea(
             if (showDestinationPhoto && !isCourseDashboard) {
                 DestinationWidget()
             }
+        }
         }
         }
 
@@ -1184,6 +1192,7 @@ private fun WidgetsPanel(current: Destination, progress: ProgressState, modifier
         current == Destination.SpeedRound ||
         current == Destination.MemoryMatch ||
         current == Destination.GrammarSprint ||
+        current == Destination.VocabPinball ||
         current == Destination.DailyLesson ||
         current == Destination.Assistant ||
         current == Destination.Lesson ||
@@ -1210,6 +1219,7 @@ private fun WidgetsPanel(current: Destination, progress: ProgressState, modifier
         current == Destination.SpeedRound ||
         current == Destination.MemoryMatch ||
         current == Destination.GrammarSprint ||
+        current == Destination.VocabPinball ||
         current == Destination.DailyLesson ||
         current == Destination.Assistant ||
         current == Destination.Lesson ||
@@ -1249,6 +1259,7 @@ private fun showsDestinationPhoto(current: Destination): Boolean =
         current != Destination.SpeedRound &&
         current != Destination.MemoryMatch &&
         current != Destination.GrammarSprint &&
+        current != Destination.VocabPinball &&
         current != Destination.Flashcards &&
         current != Destination.FlashcardStudy &&
         current != Destination.FlashcardBrowse &&

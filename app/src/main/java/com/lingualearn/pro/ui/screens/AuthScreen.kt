@@ -32,10 +32,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.google.android.gms.auth.api.signin.GoogleSignIn
-import com.google.android.gms.auth.api.signin.GoogleSignInOptions
-import com.google.android.gms.common.api.ApiException
 import com.lingualearn.pro.R
 import com.lingualearn.pro.data.CloudWordRepository
+import com.lingualearn.pro.data.GoogleSignInHelper
 import com.lingualearn.pro.ui.components.BodyText
 import com.lingualearn.pro.ui.components.CinematicBackground
 import com.lingualearn.pro.ui.components.CinematicCommandButton
@@ -57,27 +56,18 @@ fun TitleAuthScreen(onSignedIn: () -> Unit) {
     var phase by remember { mutableIntStateOf(0) }
 
     val googleSignInClient = remember(context) {
-        val options = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-            .requestIdToken(context.getString(R.string.default_web_client_id))
-            .requestEmail()
-            .requestProfile()
-            .build()
-        GoogleSignIn.getClient(context, options)
+        GoogleSignIn.getClient(context, GoogleSignInHelper.options(context))
     }
 
     val signInLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult(),
     ) { result ->
-        val account = runCatching {
-            GoogleSignIn.getSignedInAccountFromIntent(result.data)
-                .getResult(ApiException::class.java)
-        }.getOrNull()
-        val idToken = account?.idToken
-        if (idToken == null) {
-            signingIn = false
-            errorMessage = "Google sign-in was cancelled or unsuccessful."
-            return@rememberLauncherForActivityResult
-        }
+        val idToken = runCatching { GoogleSignInHelper.idTokenFromResult(result.data) }
+            .onFailure { error ->
+                signingIn = false
+                errorMessage = GoogleSignInHelper.userMessage(error)
+            }
+            .getOrNull() ?: return@rememberLauncherForActivityResult
         scope.launch {
             signingIn = true
             errorMessage = null
@@ -169,13 +159,16 @@ fun TitleAuthScreen(onSignedIn: () -> Unit) {
                     ) {
                         val enabled = !signingIn
                         CinematicCommandButton(
-                            text = if (signingIn) "Logging in" else "Log in",
+                            text = if (signingIn) "Logging in" else "Continue with Google",
                             onClick = {
                                 errorMessage = null
                                 signingIn = true
-                                signInLauncher.launch(googleSignInClient.signInIntent)
+                                googleSignInClient.signOut().addOnCompleteListener {
+                                    signInLauncher.launch(googleSignInClient.signInIntent)
+                                }
                             },
                             enabled = enabled,
+                            modifier = Modifier.fillMaxWidth(),
                         )
                         if (signingIn) {
                             BodyText("Connecting your Google account…", color = TextMuted)

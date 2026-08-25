@@ -14,6 +14,7 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material.icons.filled.Style
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.SportsEsports
 import androidx.compose.ui.graphics.vector.ImageVector
 
 enum class Destination(
@@ -47,10 +48,11 @@ enum class Destination(
     FlashcardStudy("flashcard-study", "Flashcard Study", "Study", Icons.Filled.Style),
     FlashcardBrowse("flashcard-browse", "Browse Deck", "Browse", Icons.Filled.Style),
     FlashcardOcr("flashcard-ocr", "OCR Flashcards", "OCR Cards", Icons.Filled.PhotoCamera),
-    Challenges("challenges", "Weekly Challenges", "Challenges", Icons.Filled.EmojiEvents),
+    Challenges("challenges", "Quests", "Quests", Icons.Filled.EmojiEvents),
     SpeedRound("speed-round", "Speed Round", "Speed Round", Icons.Filled.EmojiEvents),
     MemoryMatch("memory-match", "Memory Match", "Memory Match", Icons.Filled.EmojiEvents),
-    GrammarSprint("grammar-sprint", "Grammar Sprint", "Grammar Sprint", Icons.Filled.EmojiEvents);
+    GrammarSprint("grammar-sprint", "Grammar Sprint", "Grammar Sprint", Icons.Filled.EmojiEvents),
+    VocabPinball("vocab-pinball", "Word Pinball", "Pinball", Icons.Filled.SportsEsports);
 
     companion object {
         val activities = listOf(Vocabulary, Lessons, Conversation, Listening, Writing, Assistant, Flashcards)
@@ -75,9 +77,16 @@ enum class Destination(
             SpeedRound,
             MemoryMatch,
             GrammarSprint,
+            VocabPinball,
         )
 
-        /** Daily Lesson / Practice / Challenges tabs — dashboard and those flows only, not sidebar activities. */
+        fun isQuestDestination(destination: Destination): Boolean =
+            destination in challengeDestinations
+
+        fun isArcadePlay(destination: Destination): Boolean =
+            destination == VocabPinball
+
+        /** Daily Lesson / Practice / Quests tabs — dashboard and those flows only, not sidebar activities. */
         fun showsLanguageToolbar(destination: Destination): Boolean =
             destination in courseDashboards ||
                 destination in toolbar ||
@@ -116,10 +125,11 @@ enum class Destination(
             FlashcardStudy -> "$languageName Flashcard Study"
             FlashcardBrowse -> "$languageName Browse Deck"
             FlashcardOcr -> "$languageName OCR Flashcards"
-            Challenges -> "$languageName Weekly Challenges"
+            Challenges -> "$languageName Quests"
             SpeedRound -> "$languageName Speed Round"
             MemoryMatch -> "$languageName Memory Match"
             GrammarSprint -> "$languageName Grammar Sprint"
+            VocabPinball -> "$languageName Word Pinball"
             Lesson -> "$languageName Grammar Lesson"
             Dashboard -> "$languageName Learning Dashboard"
             else -> destination.title

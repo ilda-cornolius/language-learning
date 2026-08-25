@@ -34,6 +34,7 @@ import com.lingualearn.pro.ui.components.BodyText
 import com.lingualearn.pro.ui.components.CardTitle
 import com.lingualearn.pro.ui.components.GlassCard
 import com.lingualearn.pro.ui.components.GlassTile
+import com.lingualearn.pro.ui.components.GlossyOrb
 import com.lingualearn.pro.ui.components.PhraseWithReading
 import com.lingualearn.pro.ui.theme.TextMuted
 import com.lingualearn.pro.ui.theme.TextPrimary
@@ -47,6 +48,12 @@ import kotlin.random.Random
 private const val SPEED_ID = "speed-round"
 private const val MEMORY_ID = "memory-match"
 private const val GRAMMAR_ID = "grammar-sprint"
+internal const val SPEED_FIRST_XP = 500
+internal const val SPEED_DAILY_XP = 180
+internal const val MEMORY_FIRST_XP = 300
+internal const val MEMORY_DAILY_XP = 120
+internal const val GRAMMAR_FIRST_XP = 400
+internal const val GRAMMAR_DAILY_XP = 150
 
 @Composable
 fun ChallengesScreen(
@@ -54,15 +61,44 @@ fun ChallengesScreen(
     onSpeedRound: () -> Unit,
     onMemoryMatch: () -> Unit,
     onGrammarSprint: () -> Unit,
+    onPinball: () -> Unit,
 ) {
     val progress = progressStore.state
+    val pinballXp = progressStore.pendingQuestXp(PINBALL_ID, PINBALL_FIRST_XP, PINBALL_DAILY_XP)
+    val speedXp = progressStore.pendingQuestXp(SPEED_ID, SPEED_FIRST_XP, SPEED_DAILY_XP)
+    val memoryXp = progressStore.pendingQuestXp(MEMORY_ID, MEMORY_FIRST_XP, MEMORY_DAILY_XP)
+    val grammarXp = progressStore.pendingQuestXp(GRAMMAR_ID, GRAMMAR_FIRST_XP, GRAMMAR_DAILY_XP)
+    val todayXp = pinballXp + speedXp + memoryXp + grammarXp
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        GlassCard(Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    CardTitle("Today's quests")
+                    Badge(
+                        if (todayXp > 0) "+$todayXp XP open" else "All claimed",
+                        if (todayXp > 0) VistaAccent else VistaGreen,
+                    )
+                }
+                BodyText(
+                    "Minigames are the fastest way to level up. Word Pinball is the main event — glossy orbs, flippers, and a fat XP drop.",
+                )
+            }
+        }
+        PinballQuestCard(
+            pendingXp = pinballXp,
+            best = progress.bestScores["$PINBALL_ID:score"]?.let { "Best: $it pts" },
+            onStart = onPinball,
+        )
         PerfectWeekCard(progress)
         ChallengeEntry(
             title = "Speed Round",
             description = "Translate 20 vocabulary words in 120 seconds. Score 12 to win.",
-            reward = "500 XP",
-            completed = SPEED_ID in progress.completedChallengeIds,
+            reward = questRewardLabel(speedXp, SPEED_FIRST_XP),
+            completed = speedXp == 0,
             best = progress.bestScores["$SPEED_ID:score"]?.let { "Best: $it/20" },
             color = VistaAccent,
             onStart = onSpeedRound,
@@ -70,8 +106,8 @@ fun ChallengesScreen(
         ChallengeEntry(
             title = "Memory Match",
             description = "Match 6 terms with their meanings in as few turns as possible.",
-            reward = "300 XP",
-            completed = MEMORY_ID in progress.completedChallengeIds,
+            reward = questRewardLabel(memoryXp, MEMORY_FIRST_XP),
+            completed = memoryXp == 0,
             best = progress.bestScores["$MEMORY_ID:turns-inverse"]?.let { "Best: ${10_000 - it} turns" },
             color = VistaTeal,
             onStart = onMemoryMatch,
@@ -79,12 +115,49 @@ fun ChallengesScreen(
         ChallengeEntry(
             title = "Grammar Sprint",
             description = "Race through today’s grammar questions before time runs out.",
-            reward = "400 XP",
-            completed = GRAMMAR_ID in progress.completedChallengeIds,
+            reward = questRewardLabel(grammarXp, GRAMMAR_FIRST_XP),
+            completed = grammarXp == 0,
             best = progress.bestScores["$GRAMMAR_ID:score"]?.let { "Best: $it/6" },
             color = VistaBlue,
             onStart = onGrammarSprint,
         )
+    }
+}
+
+private fun questRewardLabel(pendingXp: Int, firstXp: Int): String = when {
+    pendingXp <= 0 -> "Done today"
+    pendingXp == firstXp -> "+$pendingXp XP"
+    else -> "+$pendingXp XP today"
+}
+
+@Composable
+private fun PinballQuestCard(
+    pendingXp: Int,
+    best: String?,
+    onStart: () -> Unit,
+) {
+    GlassCard(Modifier.fillMaxWidth(), color = Color(0x3322D3EE)) {
+        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Row(horizontalArrangement = Arrangement.spacedBy((-10).dp)) {
+                    GlossyOrb(color = Color(0xFF67E8F9), diameter = 44.dp)
+                    GlossyOrb(color = Color(0xFF6EE7B7), diameter = 52.dp)
+                    GlossyOrb(color = Color(0xFF93C5FD), diameter = 44.dp)
+                }
+                Badge(
+                    if (pendingXp > 0) "+$pendingXp XP" else "Done today",
+                    if (pendingXp > 0) VistaTeal else VistaGreen,
+                )
+            }
+            CardTitle("Word Pinball")
+            BodyText("A Frutiger Aero table of glass orbs. Flip, bank vocab bumpers, and cash a bigger XP reward than any lesson.")
+            best?.let { BodyText(it, color = TextMuted) }
+            AeroButton(if (pendingXp > 0) "Play" else "Replay", onClick = onStart, color = VistaTeal)
+        }
     }
 }
 
@@ -156,9 +229,10 @@ fun SpeedRoundScreen(course: LanguageCourse, progressStore: ProgressStore, onBac
         finished = true
         progressStore.updateBestScore("$SPEED_ID:score", finalScore)
         xpEarned = if (finalScore >= 12) {
-            progressStore.completeChallenge(
+            progressStore.completeQuest(
                 SPEED_ID,
-                500,
+                SPEED_FIRST_XP,
+                SPEED_DAILY_XP,
                 finalScore,
                 "$SPEED_ID:score",
                 courseId = course.id,
@@ -186,13 +260,13 @@ fun SpeedRoundScreen(course: LanguageCourse, progressStore: ProgressStore, onBac
                     successText = if ((xpEarned ?: 0) > 0) {
                         "Speed Round marked complete. You earned ${xpEarned} XP!"
                     } else {
-                        "Speed Round complete! You've already claimed this challenge reward."
+                        "Speed Round complete! Today's quest XP is already claimed — replay for the scoreboard."
                     },
                     failureText = "Score 12 or more to win.",
                     onRetry = { run++ },
                     onBack = onBack,
                     xpEarned = if (won) xpEarned else null,
-                    xpReward = 500,
+                    xpReward = SPEED_FIRST_XP,
                 )
             } else {
                 val word = words[index]
@@ -271,7 +345,13 @@ fun MemoryMatchScreen(course: LanguageCourse, progressStore: ProgressStore, onBa
     LaunchedEffect(finished) {
         if (finished && xpEarned == null) {
             progressStore.updateBestScore("$MEMORY_ID:turns-inverse", 10_000 - turns)
-            xpEarned = progressStore.completeChallenge(MEMORY_ID, 300, pairs.size, courseId = course.id)
+            xpEarned = progressStore.completeQuest(
+                MEMORY_ID,
+                MEMORY_FIRST_XP,
+                MEMORY_DAILY_XP,
+                pairs.size,
+                courseId = course.id,
+            )
             SoundEffects.playSuccess(context, preferencesStore)
         }
     }
@@ -286,13 +366,13 @@ fun MemoryMatchScreen(course: LanguageCourse, progressStore: ProgressStore, onBa
                     successText = if ((xpEarned ?: 0) > 0) {
                         "Memory Match marked complete. You earned ${xpEarned} XP!"
                     } else {
-                        "All pairs matched! You've already claimed this challenge reward."
+                        "All pairs matched! Today's quest XP is already claimed — replay for a better turn count."
                     },
                     failureText = "",
                     onRetry = { run++ },
                     onBack = onBack,
                     xpEarned = xpEarned,
-                    xpReward = 300,
+                    xpReward = MEMORY_FIRST_XP,
                 )
             } else {
                 ChallengeStats("Turns", turns.toString(), "Matches", "${matchedPairs.size}/6")
@@ -369,9 +449,10 @@ fun GrammarSprintScreen(course: LanguageCourse, progressStore: ProgressStore, on
         progressStore.updateBestScore("$GRAMMAR_ID:score", finalScore)
         val won = finalScore >= 4 && seconds > 0
         xpEarned = if (won) {
-            progressStore.completeChallenge(
+            progressStore.completeQuest(
                 GRAMMAR_ID,
-                400,
+                GRAMMAR_FIRST_XP,
+                GRAMMAR_DAILY_XP,
                 finalScore,
                 "$GRAMMAR_ID:score",
                 courseId = course.id,
@@ -399,7 +480,7 @@ fun GrammarSprintScreen(course: LanguageCourse, progressStore: ProgressStore, on
                     successText = if ((xpEarned ?: 0) > 0) {
                         "Grammar Sprint marked complete. You earned ${xpEarned} XP!"
                     } else {
-                        "Grammar Sprint complete! You've already claimed this challenge reward."
+                        "Grammar Sprint complete! Today's quest XP is already claimed — replay for the scoreboard."
                     },
                     failureText = if (seconds == 0) {
                         "Time expired. Get 4 correct answers to win."
@@ -409,7 +490,7 @@ fun GrammarSprintScreen(course: LanguageCourse, progressStore: ProgressStore, on
                     onRetry = { run++ },
                     onBack = onBack,
                     xpEarned = if (won) xpEarned else null,
-                    xpReward = 400,
+                    xpReward = GRAMMAR_FIRST_XP,
                 )
             } else {
                 val question = questions[index]
@@ -438,7 +519,7 @@ fun GrammarSprintScreen(course: LanguageCourse, progressStore: ProgressStore, on
 
 @Composable
 private fun ChallengeHeader(title: String, subtitle: String, onBack: () -> Unit) {
-    AeroButton("Back to Challenges", onClick = onBack, color = Color(0xFF526777))
+    AeroButton("Back to Quests", onClick = onBack, color = Color(0xFF526777))
     GlassCard(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
             CardTitle(title)

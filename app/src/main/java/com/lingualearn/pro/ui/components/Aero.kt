@@ -696,6 +696,37 @@ fun BodyText(text: String, modifier: Modifier = Modifier, color: Color = TextSec
 }
 
 @Composable
+fun GlossyOrb(
+    modifier: Modifier = Modifier,
+    color: Color = Color(0xFF5EEAD4),
+    diameter: Dp = 56.dp,
+) {
+    Canvas(modifier.size(diameter)) {
+        val r = size.minDimension / 2f
+        val c = Offset(center.x, center.y)
+        drawCircle(
+            brush = Brush.radialGradient(
+                colors = listOf(
+                    Color.White.copy(alpha = 0.95f),
+                    color,
+                    color.copy(alpha = 0.72f),
+                    Color(0xFF0B3B4A),
+                ),
+                center = Offset(r * 0.62f, r * 0.52f),
+                radius = r * 1.28f,
+            ),
+            radius = r * 0.96f,
+            center = c,
+        )
+        drawCircle(
+            color = Color.White.copy(alpha = 0.58f),
+            radius = r * 0.22f,
+            center = Offset(r * 0.62f, r * 0.52f),
+        )
+    }
+}
+
+@Composable
 fun PhraseWithReading(
     phrase: String,
     reading: String?,

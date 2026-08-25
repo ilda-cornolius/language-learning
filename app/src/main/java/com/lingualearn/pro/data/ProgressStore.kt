@@ -157,15 +157,48 @@ class ProgressStore(context: Context) {
         courseId: String? = null,
     ): Int {
         updateBestScore(scoreKey, score)
-        val completed = state.completedChallengeIds + challengeId
-        if (completed != state.completedChallengeIds) {
-            preferences.edit().putStringSet(KEY_CHALLENGES, completed).apply()
-            state = state.copy(completedChallengeIds = completed)
-            notifyChanged()
-        }
+        markQuestCompleted(challengeId)
         val awarded = awardOnce("challenge:$challengeId", xp, courseId = courseId)
         markDayActive()
         return if (awarded) xp else 0
+    }
+
+    /**
+     * Quests are the main XP path: a large first-clear bonus, then a daily payout
+     * so replaying minigames keeps leveling you up.
+     */
+    fun completeQuest(
+        questId: String,
+        firstClearXp: Int,
+        dailyXp: Int,
+        score: Int,
+        scoreKey: String = questId,
+        courseId: String? = null,
+    ): Int {
+        updateBestScore(scoreKey, score)
+        markQuestCompleted(questId)
+        val awarded = when {
+            awardOnce("challenge:$questId", firstClearXp, courseId = courseId) -> firstClearXp
+            awardOnce("challenge:${todayKey()}:$questId", dailyXp, courseId = courseId) -> dailyXp
+            else -> 0
+        }
+        markDayActive()
+        return awarded
+    }
+
+    fun pendingQuestXp(questId: String, firstClearXp: Int, dailyXp: Int): Int {
+        val awards = awardIds
+        if ("challenge:$questId" !in awards) return firstClearXp
+        if ("challenge:${todayKey()}:$questId" !in awards) return dailyXp
+        return 0
+    }
+
+    private fun markQuestCompleted(questId: String) {
+        val completed = state.completedChallengeIds + questId
+        if (completed == state.completedChallengeIds) return
+        preferences.edit().putStringSet(KEY_CHALLENGES, completed).apply()
+        state = state.copy(completedChallengeIds = completed)
+        notifyChanged()
     }
 
     fun updateBestScore(key: String, score: Int) {

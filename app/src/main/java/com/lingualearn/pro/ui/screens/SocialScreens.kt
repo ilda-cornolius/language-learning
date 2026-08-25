@@ -41,10 +41,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.core.content.ContextCompat
 import com.google.android.gms.auth.api.signin.GoogleSignIn
-import com.google.android.gms.auth.api.signin.GoogleSignInOptions
-import com.google.android.gms.common.api.ApiException
-import com.lingualearn.pro.R
 import com.lingualearn.pro.data.CloudWordRepository
+import com.lingualearn.pro.data.GoogleSignInHelper
 import com.lingualearn.pro.data.DictionaryLookupRepository
 import com.lingualearn.pro.data.LanguageCourse
 import androidx.compose.ui.text.font.FontWeight
@@ -282,11 +280,7 @@ fun GoogleToolsScreen(
     val scope = rememberCoroutineScope()
     val uriHandler = LocalUriHandler.current
     val googleSignInClient = remember(context) {
-        val options = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-            .requestIdToken(context.getString(R.string.default_web_client_id))
-            .requestEmail()
-            .build()
-        GoogleSignIn.getClient(context, options)
+        GoogleSignIn.getClient(context, GoogleSignInHelper.options(context))
     }
     val languageCode = when (course.id) {
         "french" -> "fr"
@@ -360,13 +354,13 @@ fun GoogleToolsScreen(
     val signInLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
-        val account = runCatching {
-            GoogleSignIn.getSignedInAccountFromIntent(result.data)
-                .getResult(ApiException::class.java)
-        }.getOrNull()
-        val idToken = account?.idToken
+        val idToken = runCatching { GoogleSignInHelper.idTokenFromResult(result.data) }
+            .onFailure { cloudStatus = GoogleSignInHelper.userMessage(it) }
+            .getOrNull()
         if (idToken == null) {
-            cloudStatus = "Google sign-in was cancelled or unsuccessful."
+            if (cloudStatus.isBlank()) {
+                cloudStatus = "Google sign-in was cancelled or unsuccessful."
+            }
         } else {
             scope.launch {
                 cloudStatus = "Signing in…"
@@ -456,7 +450,9 @@ fun GoogleToolsScreen(
                             } else {
                                 pendingSave = source to translation
                                 cloudStatus = "Sign in with Google to save your deck online."
-                                signInLauncher.launch(googleSignInClient.signInIntent)
+                                googleSignInClient.signOut().addOnCompleteListener {
+                                    signInLauncher.launch(googleSignInClient.signInIntent)
+                                }
                             }
                         },
                     )

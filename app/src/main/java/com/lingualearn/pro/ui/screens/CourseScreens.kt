@@ -47,8 +47,6 @@ import com.lingualearn.pro.ui.theme.TextPrimary
 import com.lingualearn.pro.ui.theme.VistaAccent
 import com.lingualearn.pro.ui.theme.VistaGreen
 import com.lingualearn.pro.ui.theme.VistaTeal
-import java.util.Calendar
-import kotlin.math.absoluteValue
 
 @Composable
 fun CourseDashboardScreen(
@@ -250,29 +248,13 @@ private fun nextUpItems(course: LanguageCourse, progress: ProgressState): List<N
         subtitle = "A short round of conjugations and sentence structure.",
         destination = Destination.GrammarDrills,
     )
-    val activities = listOf(
-        NextUpItem(
-            "Activity",
-            "Conversation",
-            "Talk through a short real-life scenario.",
-            Destination.Conversation,
-        ),
-        NextUpItem(
-            "Activity",
-            "Listening",
-            "Train your ear with a short clip.",
-            Destination.Listening,
-        ),
-        NextUpItem(
-            "Activity",
-            "Challenge",
-            "A timed round to earn XP.",
-            Destination.Challenges,
-        ),
+    val questItem = NextUpItem(
+        eyebrow = "Quest",
+        title = "Word Pinball",
+        subtitle = "Glass-orb pinball — the biggest XP drop in Lumina.",
+        destination = Destination.VocabPinball,
     )
-    val day = Calendar.getInstance().get(Calendar.DAY_OF_YEAR)
-    val activityItem = activities[(day + course.id.hashCode().absoluteValue) % activities.size]
-    return listOf(continueItem, drillItem, activityItem)
+    return listOf(continueItem, questItem, drillItem)
 }
 
 @Composable

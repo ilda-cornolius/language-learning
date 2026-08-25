@@ -33,6 +33,13 @@ object SoundEffects {
         }
     }
 
+    fun playBumper(context: Context, preferences: PreferencesStore) {
+        if (!preferences.soundEffects) return
+        runCatching {
+            generator().startTone(ToneGenerator.TONE_PROP_BEEP, 70)
+        }
+    }
+
     fun release() {
         runCatching { tones?.release() }
         tones = null
