@@ -58,6 +58,7 @@ import com.lingualearn.pro.ui.components.CardTitle
 import com.lingualearn.pro.ui.components.GlassCard
 import com.lingualearn.pro.ui.components.GlassTextField
 import com.lingualearn.pro.ui.components.GlassTile
+import com.lingualearn.pro.ui.components.PhraseWithReading
 import com.lingualearn.pro.ui.theme.GlassTileStrong
 import com.lingualearn.pro.ui.theme.TextMuted
 import com.lingualearn.pro.ui.theme.TextPrimary
@@ -113,8 +114,12 @@ fun GrammarLessonScreen(course: LanguageCourse, onComplete: () -> Unit) {
             }
             lesson.examples.forEach {
                 GlassTile(Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(12.dp)) {
-                        Text(it.phrase, color = TextPrimary, fontWeight = FontWeight.Bold)
+                    Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        PhraseWithReading(
+                            phrase = it.phrase,
+                            reading = it.reading,
+                            phraseWeight = FontWeight.Bold,
+                        )
                         BodyText(it.translation, color = TextMuted)
                     }
                 }
@@ -195,6 +200,7 @@ fun QuickReviewScreen(course: LanguageCourse, onBack: () -> Unit, onComplete: (I
                         checked && option == word.term,
                         checked && option == selected && option != word.term,
                         course.accent,
+                        words.firstOrNull { it.term == option }?.reading,
                     ) { if (!checked) selected = option }
                 }
                 if (checked) BodyText(if (selected == word.term) "Correct!" else "Answer: ${word.term}")
@@ -271,6 +277,7 @@ private fun QuizCard(
                         checked && question.correctIndex == optionIndex,
                         checked && selected == optionIndex && question.correctIndex != optionIndex,
                         course.accent,
+                        SampleContent.readingOf(course.id, option),
                     ) { if (!checked) selected = optionIndex }
                 }
                 if (checked) BodyText(question.explanation)
@@ -391,7 +398,11 @@ fun PronunciationLabScreen(
                 }
             } else {
                 Badge("${index + 1}/${phrases.size}", course.accent.copy(alpha = 0.65f))
-                Text(phrase.phrase, style = MaterialTheme.typography.headlineSmall, color = TextPrimary)
+                PhraseWithReading(
+                    phrase = phrase.phrase,
+                    reading = phrase.reading,
+                    phraseStyle = MaterialTheme.typography.headlineSmall,
+                )
                 BodyText(phrase.translation)
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     AeroButton(
@@ -528,7 +539,13 @@ fun DictationNotebookScreen(
                                 message = "Added “${suggestion.term} — ${suggestion.meaning}”."
                             }) {
                                 Row(Modifier.padding(12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    Text(suggestion.term, color = course.accent, fontWeight = FontWeight.Bold)
+                                    PhraseWithReading(
+                                        phrase = suggestion.term,
+                                        reading = suggestion.reading,
+                                        phraseColor = course.accent,
+                                        phraseWeight = FontWeight.Bold,
+                                        toggleOnClick = false,
+                                    )
                                     BodyText("— ${suggestion.meaning}")
                                 }
                             }
@@ -681,6 +698,7 @@ private fun AnswerOption(
     correct: Boolean,
     incorrect: Boolean,
     accent: Color,
+    reading: String? = null,
     onClick: () -> Unit,
 ) {
     val color = when {
@@ -690,7 +708,13 @@ private fun AnswerOption(
         else -> GlassTileStrong
     }
     GlassTile(Modifier.fillMaxWidth(), color = color, onClick = onClick) {
-        Text(text, color = TextPrimary, modifier = Modifier.padding(14.dp))
+        PhraseWithReading(
+            phrase = text,
+            reading = reading,
+            toggleOnClick = false,
+            forceShow = selected || correct || incorrect,
+            modifier = Modifier.padding(14.dp),
+        )
     }
 }
 

@@ -34,6 +34,7 @@ import com.lingualearn.pro.ui.components.BodyText
 import com.lingualearn.pro.ui.components.CardTitle
 import com.lingualearn.pro.ui.components.GlassCard
 import com.lingualearn.pro.ui.components.GlassTile
+import com.lingualearn.pro.ui.components.PhraseWithReading
 import com.lingualearn.pro.ui.theme.TextMuted
 import com.lingualearn.pro.ui.theme.TextPrimary
 import com.lingualearn.pro.ui.theme.VistaAccent
@@ -198,7 +199,12 @@ fun SpeedRoundScreen(course: LanguageCourse, progressStore: ProgressStore, onBac
                 ChallengeStats("Time", formatSeconds(seconds), "Score", "$score · ${index + 1}/20")
                 AeroProgressBar(index / 20f, course.accent)
                 BodyText("Choose the English translation", color = TextMuted)
-                CardTitle(word.term)
+                PhraseWithReading(
+                    phrase = word.term,
+                    reading = word.reading,
+                    phraseStyle = MaterialTheme.typography.titleMedium,
+                    phraseWeight = FontWeight.SemiBold,
+                )
                 speedOptions(words, index).forEach { option ->
                     ChallengeOption(option, course.accent) {
                         val correct = option == word.meaning
@@ -226,7 +232,7 @@ fun MemoryMatchScreen(course: LanguageCourse, progressStore: ProgressStore, onBa
     var run by rememberSaveable(course.id) { mutableStateOf(0) }
     val pairs = remember(course.id) { SampleContent.practicePack(course.id).reviewWords.take(6) }
     val cards = remember(course.id, run) {
-        (pairs.mapIndexed { i, word -> MemoryCard(i, word.term) } +
+        (pairs.mapIndexed { i, word -> MemoryCard(i, word.term, word.reading) } +
             pairs.mapIndexed { i, word -> MemoryCard(i, word.meaning) })
             .shuffled(Random(course.id.hashCode() + run))
     }
@@ -317,15 +323,21 @@ fun MemoryMatchScreen(course: LanguageCourse, progressStore: ProgressStore, onBa
                                     }
                                 },
                             ) {
-                                Text(
-                                    text = when {
-                                        matched -> "✓ ${card.label}"
-                                        faceUp -> card.label
-                                        else -> "?"
-                                    },
-                                    color = TextPrimary,
-                                    modifier = Modifier.fillMaxWidth().padding(14.dp),
-                                )
+                                if (!matched && !faceUp) {
+                                    Text(
+                                        text = "?",
+                                        color = TextPrimary,
+                                        modifier = Modifier.fillMaxWidth().padding(14.dp),
+                                    )
+                                } else {
+                                    PhraseWithReading(
+                                        phrase = if (matched) "✓ ${card.label}" else card.label,
+                                        reading = card.reading,
+                                        toggleOnClick = false,
+                                        forceShow = matched,
+                                        modifier = Modifier.fillMaxWidth().padding(14.dp),
+                                    )
+                                }
                             }
                         }
                     }
@@ -405,7 +417,7 @@ fun GrammarSprintScreen(course: LanguageCourse, progressStore: ProgressStore, on
                 AeroProgressBar(index / 6f, course.accent)
                 CardTitle(question.prompt)
                 question.options.forEachIndexed { optionIndex, option ->
-                    ChallengeOption(option, course.accent) {
+                    ChallengeOption(option, course.accent, SampleContent.readingOf(course.id, option)) {
                         val correct = optionIndex == question.correctIndex
                         if (correct) SoundEffects.playCorrect(context, preferencesStore)
                         else SoundEffects.playIncorrect(context, preferencesStore)
@@ -450,9 +462,14 @@ private fun ChallengeStats(labelOne: String, valueOne: String, labelTwo: String,
 }
 
 @Composable
-private fun ChallengeOption(text: String, color: Color, onClick: () -> Unit) {
+private fun ChallengeOption(text: String, color: Color, reading: String? = null, onClick: () -> Unit) {
     GlassTile(Modifier.fillMaxWidth(), onClick = onClick, color = color.copy(alpha = 0.22f)) {
-        Text(text, color = TextPrimary, modifier = Modifier.padding(14.dp))
+        PhraseWithReading(
+            phrase = text,
+            reading = reading,
+            toggleOnClick = false,
+            modifier = Modifier.padding(14.dp),
+        )
     }
 }
 
@@ -511,4 +528,4 @@ private fun speedOptions(words: List<VocabWord>, index: Int): List<String> {
 
 private fun formatSeconds(seconds: Int) = "%d:%02d".format(seconds / 60, seconds % 60)
 
-private data class MemoryCard(val pairId: Int, val label: String)
+private data class MemoryCard(val pairId: Int, val label: String, val reading: String? = null)

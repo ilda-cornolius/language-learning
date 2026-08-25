@@ -26,6 +26,7 @@ object AiTutorRepository {
             Correct mistakes gently, explain grammar clearly in English, and include ${course.name} examples.
             Keep replies concise (usually 2-5 sentences). Ask one useful follow-up question when appropriate.
             Never claim the student's answer is correct when it is not.
+            ${readingHint(course)}
 
             Conversation so far:
             $recentConversation
@@ -46,6 +47,7 @@ object AiTutorRepository {
             Setting: ${scenario.description}
             Start the conversation naturally in ${course.name} at a ${course.level.lowercase()} level.
             After the ${course.name} line, add a short English translation in parentheses.
+            ${readingHint(course)}
             Keep it to 1-2 sentences. Do not mention that you are an AI.
         """.trimIndent()
         return model.generateContent(prompt).text
@@ -70,6 +72,7 @@ object AiTutorRepository {
             Setting: ${scenario.description}
             The student is ${course.level.lowercase()}. Stay in character and keep the scene moving.
             Reply mostly in ${course.name}, then give a brief English translation in parentheses.
+            ${readingHint(course)}
             If the student makes a mistake, gently correct it in one short English note after the translation.
             Keep replies concise (2-4 sentences). Ask one natural follow-up in ${course.name}.
 
@@ -83,5 +86,13 @@ object AiTutorRepository {
             ?.trim()
             ?.takeIf { it.isNotEmpty() }
             ?: error("The AI conversation returned an empty response")
+    }
+
+    private fun readingHint(course: LanguageCourse): String = when (course.id) {
+        "mandarin" ->
+            "Whenever you write Chinese characters, immediately add Hanyu Pinyin with tone marks in parentheses, for example 你好 (nǐ hǎo)."
+        "korean" ->
+            "Whenever you write Hangul, immediately add Revised Romanization in parentheses, for example 안녕하세요 (annyeonghaseyo)."
+        else -> ""
     }
 }

@@ -502,7 +502,6 @@ private fun AdaptiveWideShell(
                     modifier = Modifier
                         .width(230.dp)
                         .fillMaxHeight()
-                        .verticalScroll(rememberScrollState())
                         .padding(12.dp),
                 )
             }
@@ -807,8 +806,14 @@ private fun LanguageToolbar(
             )
         }
         Spacer(Modifier.width(4.dp))
-        StatChip(Icons.Filled.LocalFireDepartment, "${progress.currentStreak} day streak", VistaAccent)
-        StatChip(Icons.Filled.Diamond, "${progress.totalXp} XP · Lv ${progress.level}", VistaTeal)
+        val onHome = current == Destination.Spanish ||
+            current == Destination.French ||
+            current == Destination.Japanese ||
+            current == Destination.Dashboard
+        if (!onHome) {
+            StatChip(Icons.Filled.LocalFireDepartment, "${progress.currentStreak} day streak", VistaAccent)
+            StatChip(Icons.Filled.Diamond, "${progress.totalXp} XP · Lv ${progress.level}", VistaTeal)
+        }
     }
 }
 
@@ -910,13 +915,21 @@ private fun ContentArea(
         if (awarded || lessonCompleted) progressStore.markDayActive()
     }
 
-    Column(
-        modifier
-            .fillMaxWidth()
-            .verticalScroll(rememberScrollState())
-            .padding(start = 16.dp, end = 16.dp, top = 24.dp, bottom = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
+    val isCourseDashboard = current == Destination.Spanish ||
+        current == Destination.French ||
+        current == Destination.Japanese ||
+        current == Destination.Dashboard
+    val showDestinationPhoto = showWidgets && showsDestinationPhoto(current)
+
+    Column(modifier.fillMaxWidth()) {
+        Column(
+            Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(start = 16.dp, end = 16.dp, top = 24.dp, bottom = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
         when (current) {
             Destination.Lesson -> GrammarLessonScreen(
                 course = activeCourse,
@@ -936,11 +949,7 @@ private fun ContentArea(
                     progress = progressStore.state,
                     displayName = CloudWordRepository.userDisplayName ?: preferencesStore.displayName,
                     photoUrl = CloudWordRepository.userPhotoUrl,
-                    preferencesStore = preferencesStore,
                     onNavigate = onNavigate,
-                    onFlashcardSessionComplete = { reviews ->
-                        if (reviews >= 5) awardDaily("flashcards", 40)
-                    },
                 )
             }
             Destination.Vocabulary -> VocabularyScreen(
@@ -1081,10 +1090,6 @@ private fun ContentArea(
         }
 
         if (showWidgets) {
-            val isCourseDashboard = current == Destination.Spanish ||
-                current == Destination.French ||
-                current == Destination.Japanese ||
-                current == Destination.Dashboard
             val hideCalendarClock = current == Destination.Practice ||
                 current == Destination.QuickReview ||
                 current == Destination.GrammarDrills ||
@@ -1146,17 +1151,16 @@ private fun ContentArea(
             if (!hideDailyProgress) {
                 DailyProgressWidget(progressStore.state)
             }
-            if (current != Destination.Challenges &&
-                current != Destination.SpeedRound &&
-                current != Destination.MemoryMatch &&
-                current != Destination.GrammarSprint &&
-                current != Destination.Flashcards &&
-                current != Destination.FlashcardStudy &&
-                current != Destination.FlashcardBrowse &&
-                current != Destination.FlashcardOcr
-            ) {
+            if (showDestinationPhoto && !isCourseDashboard) {
                 DestinationWidget()
             }
+        }
+        }
+
+        if (showDestinationPhoto && isCourseDashboard) {
+            DestinationWidget(
+                Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
+            )
         }
     }
 }
@@ -1219,27 +1223,36 @@ private fun WidgetsPanel(current: Destination, progress: ProgressState, modifier
         current == Destination.Google ||
         current == Destination.Profile ||
         isCourseDashboard
-    Column(modifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        if (!hideCalendarClock) {
-            CalendarWidget()
-            ClockWidget()
-        }
-        if (!hideDailyProgress) {
-            DailyProgressWidget(progress)
-        }
-        if (current != Destination.Challenges &&
-            current != Destination.SpeedRound &&
-            current != Destination.MemoryMatch &&
-            current != Destination.GrammarSprint &&
-            current != Destination.Flashcards &&
-            current != Destination.FlashcardStudy &&
-            current != Destination.FlashcardBrowse &&
-            current != Destination.FlashcardOcr
+    Column(modifier) {
+        Column(
+            Modifier
+                .weight(1f)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            DestinationWidget()
+            if (!hideCalendarClock) {
+                CalendarWidget()
+                ClockWidget()
+            }
+            if (!hideDailyProgress) {
+                DailyProgressWidget(progress)
+            }
+        }
+        if (showsDestinationPhoto(current)) {
+            DestinationWidget(Modifier.padding(top = 12.dp))
         }
     }
 }
+
+private fun showsDestinationPhoto(current: Destination): Boolean =
+    current != Destination.Challenges &&
+        current != Destination.SpeedRound &&
+        current != Destination.MemoryMatch &&
+        current != Destination.GrammarSprint &&
+        current != Destination.Flashcards &&
+        current != Destination.FlashcardStudy &&
+        current != Destination.FlashcardBrowse &&
+        current != Destination.FlashcardOcr
 
 @Composable
 private fun StatusBar() {

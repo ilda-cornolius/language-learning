@@ -12,7 +12,10 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.layout.Arrangement
@@ -60,10 +63,13 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -687,6 +693,62 @@ fun BodyText(text: String, modifier: Modifier = Modifier, color: Color = TextSec
         color = color,
         modifier = modifier,
     )
+}
+
+@Composable
+fun PhraseWithReading(
+    phrase: String,
+    reading: String?,
+    modifier: Modifier = Modifier,
+    phraseColor: Color = TextPrimary,
+    phraseStyle: TextStyle = MaterialTheme.typography.bodyMedium,
+    phraseWeight: FontWeight = FontWeight.Medium,
+    textAlign: TextAlign = TextAlign.Unspecified,
+    toggleOnClick: Boolean = true,
+    forceShow: Boolean = false,
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val hovered by interactionSource.collectIsHoveredAsState()
+    var pinned by remember(phrase, reading) { mutableStateOf(false) }
+    val canReveal = !reading.isNullOrBlank()
+    val showReading = canReveal && (forceShow || hovered || pinned)
+
+    val revealModifier = when {
+        !canReveal -> Modifier
+        toggleOnClick -> Modifier.clickable(
+            interactionSource = interactionSource,
+            indication = null,
+            onClick = { pinned = !pinned },
+        )
+        else -> Modifier
+            .hoverable(interactionSource)
+            .pointerInput(phrase, reading) {
+                detectTapGestures(onLongPress = { pinned = !pinned })
+            }
+    }
+
+    Column(
+        modifier = modifier.then(revealModifier),
+        horizontalAlignment = if (textAlign == TextAlign.Center) Alignment.CenterHorizontally else Alignment.Start,
+    ) {
+        Text(
+            text = phrase,
+            color = phraseColor,
+            style = phraseStyle,
+            fontWeight = phraseWeight,
+            textAlign = textAlign,
+            textDecoration = if (canReveal && !showReading) TextDecoration.Underline else TextDecoration.None,
+        )
+        if (showReading) {
+            Text(
+                text = reading.orEmpty(),
+                color = TextMuted,
+                style = MaterialTheme.typography.bodySmall,
+                fontStyle = FontStyle.Italic,
+                textAlign = textAlign,
+            )
+        }
+    }
 }
 
 @Composable

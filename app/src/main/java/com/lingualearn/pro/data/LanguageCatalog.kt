@@ -31,7 +31,21 @@ object LanguageCatalog {
         val house: String,
         val dog: String,
         val book: String,
-    )
+        val readingLabel: String? = null,
+        val readings: Map<String, String> = emptyMap(),
+    ) {
+        fun readingOf(text: String): String? {
+            if (readings.isEmpty()) return null
+            val stripped = text.trim().trimEnd('。', '？', '?', '！', '!', '，', ',', '、', '.', '…')
+            return readings[stripped] ?: readings[text.trim()]
+        }
+
+        fun vocab(term: String, meaning: String, emoji: String? = null) =
+            VocabWord(term, meaning, emoji, reading = readingOf(term))
+
+        fun example(phrase: String, translation: String) =
+            GrammarExample(phrase, translation, reading = readingOf(phrase))
+    }
 
     private val extras = listOf(
         ExtraLanguage(
@@ -85,6 +99,24 @@ object LanguageCatalog {
             house = "집",
             dog = "개",
             book = "책",
+            readingLabel = "romanization",
+            readings = mapOf(
+                "안녕하세요" to "annyeonghaseyo",
+                "감사합니다" to "gamsahamnida",
+                "하나" to "hana",
+                "둘" to "dul",
+                "친구" to "chingu",
+                "물" to "mul",
+                "주세요" to "juseyo",
+                "잘 지내세요" to "jal jinaeseyo?",
+                "커피 주세요" to "keopi juseyo.",
+                "역이 어디에 있어요" to "yeok-i eodi-e isseoyo?",
+                "사과" to "sagwa",
+                "자동차" to "jadongcha",
+                "집" to "jip",
+                "개" to "gae",
+                "책" to "chaek",
+            ),
         ),
         ExtraLanguage(
             id = "mandarin",
@@ -111,6 +143,24 @@ object LanguageCatalog {
             house = "房子",
             dog = "狗",
             book = "书",
+            readingLabel = "pinyin",
+            readings = mapOf(
+                "你好" to "nǐ hǎo",
+                "谢谢" to "xièxie",
+                "一" to "yī",
+                "二" to "èr",
+                "朋友" to "péngyou",
+                "水" to "shuǐ",
+                "请" to "qǐng",
+                "你好吗" to "nǐ hǎo ma?",
+                "我要一杯咖啡" to "wǒ yào yì bēi kāfēi.",
+                "车站在哪里" to "chēzhàn zài nǎlǐ?",
+                "苹果" to "píngguǒ",
+                "车" to "chē",
+                "房子" to "fángzi",
+                "狗" to "gǒu",
+                "书" to "shū",
+            ),
         ),
         ExtraLanguage(
             id = "polish",
@@ -316,12 +366,12 @@ object LanguageCatalog {
     fun activityPack(courseId: String): SampleContent.ActivityPack? {
         val extra = extra(courseId) ?: return null
         val vocab = listOf(
-            VocabWord(extra.apple, "apple", "\uD83C\uDF4E"),
-            VocabWord(extra.car, "car", "\uD83D\uDE97"),
-            VocabWord(extra.house, "house", "\uD83C\uDFE0"),
-            VocabWord(extra.dog, "dog", "\uD83D\uDC15"),
-            VocabWord(extra.water, "water", "\uD83D\uDCA7"),
-            VocabWord(extra.book, "book", "\uD83D\uDCDA"),
+            extra.vocab(extra.apple, "apple", "\uD83C\uDF4E"),
+            extra.vocab(extra.car, "car", "\uD83D\uDE97"),
+            extra.vocab(extra.house, "house", "\uD83C\uDFE0"),
+            extra.vocab(extra.dog, "dog", "\uD83D\uDC15"),
+            extra.vocab(extra.water, "water", "\uD83D\uDCA7"),
+            extra.vocab(extra.book, "book", "\uD83D\uDCDA"),
         )
         return SampleContent.ActivityPack(
             vocabulary = vocab,
@@ -329,11 +379,11 @@ object LanguageCatalog {
             listeningTitle = "${extra.name} Daily Phrases",
             listeningDescription = "Listen to beginner-friendly ${extra.name} clips",
             listeningPhrases = listOf(
-                GrammarExample(extra.howAreYou, extra.howAreYouEn),
-                GrammarExample(extra.station, extra.stationEn),
-                GrammarExample(extra.cafe, extra.cafeEn),
-                GrammarExample(extra.thanks, "Thank you."),
-                GrammarExample(extra.hello, "Hello."),
+                extra.example(extra.howAreYou, extra.howAreYouEn),
+                extra.example(extra.station, extra.stationEn),
+                extra.example(extra.cafe, extra.cafeEn),
+                extra.example(extra.thanks, "Thank you."),
+                extra.example(extra.hello, "Hello."),
             ),
             writingPrompt = "Describe your ideal vacation in ${extra.name} (40 words minimum)",
             writingPlaceholder = "Write here…",
@@ -359,9 +409,9 @@ object LanguageCatalog {
             concept = "Beginner ${extra.name} starts with greetings, thanks, and simple requests you can use the same day.",
             rule = "Memorize high-frequency phrases first, then swap in new nouns. Politeness words like “${extra.please}” and “${extra.thanks}” belong in almost every exchange.",
             examples = listOf(
-                GrammarExample(extra.hello, "Hello."),
-                GrammarExample(extra.howAreYou, extra.howAreYouEn),
-                GrammarExample("${extra.thanks}.", "Thank you."),
+                extra.example(extra.hello, "Hello."),
+                extra.example(extra.howAreYou, extra.howAreYouEn),
+                extra.example("${extra.thanks}.", "Thank you."),
             ),
             questions = listOf(
                 ExerciseQuestion(
@@ -389,24 +439,28 @@ object LanguageCatalog {
     fun dictionaryWords(courseId: String): List<VocabWord>? {
         val extra = extra(courseId) ?: return null
         return listOf(
-            VocabWord(extra.hello, "hello"),
-            VocabWord(extra.thanks, "thank you"),
-            VocabWord(extra.one, "one"),
-            VocabWord(extra.two, "two"),
-            VocabWord(extra.friend, "friend"),
-            VocabWord(extra.water, "water"),
-            VocabWord(extra.please, "please"),
+            extra.vocab(extra.hello, "hello"),
+            extra.vocab(extra.thanks, "thank you"),
+            extra.vocab(extra.one, "one"),
+            extra.vocab(extra.two, "two"),
+            extra.vocab(extra.friend, "friend"),
+            extra.vocab(extra.water, "water"),
+            extra.vocab(extra.please, "please"),
         )
     }
 
     fun pronunciationPhrases(courseId: String): List<GrammarExample>? {
         val extra = extra(courseId) ?: return null
         return listOf(
-            GrammarExample(extra.howAreYou, extra.howAreYouEn),
-            GrammarExample(extra.cafe, extra.cafeEn),
-            GrammarExample(extra.station, extra.stationEn),
+            extra.example(extra.howAreYou, extra.howAreYouEn),
+            extra.example(extra.cafe, extra.cafeEn),
+            extra.example(extra.station, extra.stationEn),
         )
     }
 
     fun localeTag(courseId: String): String? = extra(courseId)?.localeTag
+
+    fun readingOf(courseId: String, text: String): String? = extra(courseId)?.readingOf(text)
+
+    fun readingLabel(courseId: String): String? = extra(courseId)?.readingLabel
 }

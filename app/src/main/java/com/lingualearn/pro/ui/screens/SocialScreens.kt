@@ -62,6 +62,7 @@ import com.lingualearn.pro.ui.components.GlassCard
 import com.lingualearn.pro.ui.components.GlassTextField
 import com.lingualearn.pro.ui.components.GlassTile
 import com.lingualearn.pro.ui.components.InitialsAvatar
+import com.lingualearn.pro.ui.components.PhraseWithReading
 import com.lingualearn.pro.ui.theme.TextMuted
 import com.lingualearn.pro.ui.theme.TextPrimary
 import com.lingualearn.pro.ui.theme.VistaAccent
@@ -481,7 +482,11 @@ fun GoogleToolsScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 CardTitle("Voice Search Practice")
-                BodyText("Say: “${practicePhrase.phrase}”", color = TextMuted)
+                BodyText("Say:", color = TextMuted)
+                PhraseWithReading(
+                    phrase = practicePhrase.phrase,
+                    reading = practicePhrase.reading,
+                )
                 Box(
                     Modifier
                         .size(80.dp)

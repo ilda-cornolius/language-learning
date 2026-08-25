@@ -1,20 +1,20 @@
 package com.lingualearn.pro.ui.screens
 
-import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Diamond
+import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -23,29 +23,30 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Shadow
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.lingualearn.pro.data.LanguageCourse
-import com.lingualearn.pro.data.PreferencesStore
 import com.lingualearn.pro.data.ProgressState
 import com.lingualearn.pro.data.SampleContent
 import com.lingualearn.pro.ui.Destination
 import com.lingualearn.pro.ui.components.AeroButton
+import com.lingualearn.pro.ui.components.AeroProgressBar
 import com.lingualearn.pro.ui.components.Badge
 import com.lingualearn.pro.ui.components.BodyText
 import com.lingualearn.pro.ui.components.CardTitle
+import com.lingualearn.pro.ui.components.CrystalCursor
 import com.lingualearn.pro.ui.components.GlassCard
 import com.lingualearn.pro.ui.components.ProfileAvatar
 import com.lingualearn.pro.ui.components.selectionSpotlight
+import com.lingualearn.pro.ui.theme.GlassTileStrong
 import com.lingualearn.pro.ui.theme.TextMuted
 import com.lingualearn.pro.ui.theme.TextPrimary
-import com.lingualearn.pro.ui.widgets.DailyProgressWidget
+import com.lingualearn.pro.ui.theme.VistaAccent
+import com.lingualearn.pro.ui.theme.VistaGreen
+import com.lingualearn.pro.ui.theme.VistaTeal
 import java.util.Calendar
 import kotlin.math.absoluteValue
 
@@ -55,129 +56,116 @@ fun CourseDashboardScreen(
     progress: ProgressState,
     displayName: String,
     photoUrl: String?,
-    preferencesStore: PreferencesStore,
     onNavigate: (Destination) -> Unit = {},
-    onFlashcardSessionComplete: (reviews: Int) -> Unit = {},
 ) {
     val nextUp = remember(course.id, progress.lessonsCompleted, progress.totalXp) {
         nextUpItems(course, progress)
     }
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Row(
-            Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            ProfileAvatar(
-                name = displayName,
-                photoUrl = photoUrl,
-                size = 52.dp,
-            )
-            Column(
-                Modifier.weight(0.9f),
-                verticalArrangement = Arrangement.spacedBy(2.dp),
+    Column(verticalArrangement = Arrangement.spacedBy(22.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(
+                Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
             ) {
-                Text(
-                    text = displayName,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = TextPrimary,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
+                ProfileAvatar(
+                    name = displayName,
+                    photoUrl = photoUrl,
+                    size = 56.dp,
                 )
-                BodyText("${course.flag}  ${course.name}", color = TextMuted)
-            }
-            DailyProgressWidget(
-                progress = progress,
-                modifier = Modifier.weight(1.1f),
-                framed = false,
-            )
-        }
-
-        FlashcardStudyModule(
-            course = course,
-            preferencesStore = preferencesStore,
-            onEmptyAction = { onNavigate(Destination.Flashcards) },
-            onEmptyActionLabel = "Open deck",
-            onSessionComplete = onFlashcardSessionComplete,
-            framed = false,
-        )
-
-        GlassCard(Modifier.fillMaxWidth(), color = Color(0x24101C2E)) {
-            Box {
-                Box(
-                    Modifier
-                        .matchParentSize()
-                        .background(
-                            Brush.verticalGradient(
-                                0f to Color(0x14A5F3FC),
-                                0.22f to Color(0x107DD3FC),
-                                0.62f to Color(0x18081C2E),
-                                1f to Color(0x66050A12),
-                            ),
-                        ),
-                )
-                Canvas(Modifier.matchParentSize()) {
-                    val w = size.width
-                    val h = size.height
-                    drawCircle(
-                        brush = Brush.radialGradient(
-                            colors = listOf(Color(0x18FFFFFF), Color.Transparent),
-                            center = Offset(w * 0.88f, h * 0.08f),
-                            radius = w * 0.26f,
-                        ),
-                        radius = w * 0.26f,
-                        center = Offset(w * 0.88f, h * 0.08f),
+                Column(
+                    Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Text(
+                        text = displayName,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = TextPrimary,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                     )
-                    drawCircle(
-                        brush = Brush.radialGradient(
-                            colors = listOf(Color(0x147DD3FC), Color.Transparent),
-                            center = Offset(w * 0.12f, h * 0.92f),
-                            radius = w * 0.2f,
-                        ),
-                        radius = w * 0.2f,
-                        center = Offset(w * 0.12f, h * 0.92f),
+                    Text(
+                        text = "${course.flag}  ${course.name}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TextMuted,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                     )
-                }
-                Column {
-                    Box(
-                        Modifier
-                            .fillMaxWidth()
-                            .background(
-                                Brush.verticalGradient(
-                                    listOf(
-                                        Color(0x22FFFFFF),
-                                        Color(0x1414B8A6),
-                                        Color(0x22050A12),
-                                    ),
-                                ),
-                            )
-                            .padding(vertical = 5.dp),
-                        contentAlignment = Alignment.Center,
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
+                        AeroProgressBar(
+                            progress = progress.levelProgress,
+                            color = VistaGreen,
+                            modifier = Modifier.weight(1f),
+                            height = 6.dp,
+                        )
                         Text(
-                            text = "Next up",
-                            style = MaterialTheme.typography.bodyMedium.copy(
-                                shadow = Shadow(Color(0x447DD3FC), Offset(0f, 1f), 8f),
-                            ),
-                            color = Color(0xDEE8F4FF),
-                            fontWeight = FontWeight.SemiBold,
+                            text = "${progress.xpIntoLevel}/${ProgressState.XP_PER_LEVEL}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = TextMuted,
                         )
                     }
-                    Column(
-                        Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp),
-                    ) {
-                        nextUp.forEachIndexed { index, item ->
-                            NextUpAeroTile(
-                                item = item,
-                                orbTint = nextUpOrbTints[index % nextUpOrbTints.size],
-                                onClick = { onNavigate(item.destination) },
-                            )
-                        }
-                    }
                 }
             }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                HomeStatChip(
+                    icon = Icons.Filled.LocalFireDepartment,
+                    label = "${progress.currentStreak} day streak",
+                    tint = VistaAccent,
+                )
+                HomeStatChip(
+                    icon = Icons.Filled.Diamond,
+                    label = "${progress.totalXp} XP · Lv ${progress.level}",
+                    tint = VistaTeal,
+                )
+            }
+        }
+
+        Column(
+            modifier = Modifier.padding(top = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Text(
+                text = "NEXT UP",
+                style = MaterialTheme.typography.labelSmall,
+                color = TextMuted,
+                fontWeight = FontWeight.SemiBold,
+                letterSpacing = 2.sp,
+                modifier = Modifier.padding(start = 4.dp, bottom = 4.dp),
+            )
+            nextUp.forEach { item ->
+                NextUpRow(
+                    item = item,
+                    onClick = { onNavigate(item.destination) },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun HomeStatChip(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    tint: Color,
+) {
+    GlassCard(shape = CircleShape, color = GlassTileStrong) {
+        Row(
+            Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(14.dp))
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                color = TextPrimary,
+                maxLines = 1,
+                modifier = Modifier.padding(start = 6.dp),
+            )
         }
     }
 }
@@ -189,25 +177,16 @@ private data class NextUpItem(
     val destination: Destination,
 )
 
-private val nextUpOrbTints = listOf(
-    Color(0xFF7DD3FC),
-    Color(0xFF5EEAD4),
-    Color(0xFF93C5FD),
-)
-
 @Composable
-private fun NextUpAeroTile(
+private fun NextUpRow(
     item: NextUpItem,
-    orbTint: Color,
     onClick: () -> Unit,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
-    val shape = RoundedCornerShape(12.dp)
-
-    Box(
+    Row(
         Modifier
             .fillMaxWidth()
-            .clip(shape)
+            .clip(RoundedCornerShape(8.dp))
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
@@ -218,86 +197,33 @@ private fun NextUpAeroTile(
                 interactionSource = interactionSource,
                 color = Color(0x557DD3FC),
             )
-            .background(
-                Brush.verticalGradient(
-                    0f to Color.White.copy(alpha = 0.08f),
-                    0.42f to Color.White.copy(alpha = 0.03f),
-                    1f to orbTint.copy(alpha = 0.06f),
-                ),
-            )
-            .border(
-                1.dp,
-                Brush.verticalGradient(
-                    0f to Color.White.copy(alpha = 0.22f),
-                    0.55f to Color.White.copy(alpha = 0.08f),
-                    1f to orbTint.copy(alpha = 0.16f),
-                ),
-                shape,
-            )
-            .padding(horizontal = 10.dp, vertical = 7.dp),
+            .padding(horizontal = 4.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Row(
-            Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            AeroOrb(tint = orbTint, modifier = Modifier.size(22.dp))
-            Column(
-                Modifier
-                    .weight(1f)
-                    .padding(start = 10.dp, end = 6.dp),
-            ) {
-                Text(
-                    text = item.eyebrow,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = Color(0x99A8D8EA),
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Text(
-                    text = item.title,
-                    style = MaterialTheme.typography.bodyMedium.copy(
-                        shadow = Shadow(Color(0x337DD3FC), Offset(0f, 1f), 6f),
-                    ),
-                    color = Color(0xE6E8F4FF),
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-            Icon(
-                Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = null,
-                tint = Color.White.copy(alpha = 0.42f),
-                modifier = Modifier.size(18.dp),
-            )
-        }
-    }
-}
-
-@Composable
-private fun AeroOrb(tint: Color, modifier: Modifier = Modifier) {
-    Canvas(modifier.size(22.dp)) {
-        val c = Offset(size.width * 0.38f, size.height * 0.32f)
-        drawCircle(
-            brush = Brush.radialGradient(
-                colors = listOf(
-                    Color.White.copy(alpha = 0.55f),
-                    tint.copy(alpha = 0.7f),
-                    tint.copy(alpha = 0.22f),
-                ),
-                center = c,
-                radius = size.minDimension * 0.78f,
-            ),
+        CrystalCursor(glow = 0.82f)
+        Text(
+            text = item.eyebrow.uppercase(),
+            style = MaterialTheme.typography.labelSmall,
+            color = Color(0x99A8D8EA),
+            fontWeight = FontWeight.SemiBold,
+            letterSpacing = 1.2.sp,
+            modifier = Modifier.widthIn(min = 72.dp),
         )
-        drawCircle(
-            brush = Brush.radialGradient(
-                colors = listOf(Color.White.copy(alpha = 0.45f), Color.Transparent),
-                center = c,
-                radius = size.minDimension * 0.3f,
-            ),
+        Text(
+            text = item.title,
+            style = MaterialTheme.typography.bodyMedium,
+            color = TextPrimary,
+            fontWeight = FontWeight.Medium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
         )
-        drawCircle(
-            color = Color.White.copy(alpha = 0.18f),
-            style = Stroke(width = 1.2.dp.toPx()),
+        Icon(
+            Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            contentDescription = null,
+            tint = Color.White.copy(alpha = 0.35f),
+            modifier = Modifier.size(18.dp),
         )
     }
 }

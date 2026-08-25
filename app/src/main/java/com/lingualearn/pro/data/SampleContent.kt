@@ -29,6 +29,7 @@ data class VocabWord(
     val term: String,
     val meaning: String,
     val emoji: String? = null,
+    val reading: String? = null,
 )
 
 data class SocialPost(
@@ -54,6 +55,7 @@ data class Challenge(
 data class GrammarExample(
     val phrase: String,
     val translation: String,
+    val reading: String? = null,
 )
 
 data class ExerciseQuestion(
@@ -795,6 +797,10 @@ object SampleContent {
 
     fun courseById(id: String): LanguageCourse =
         allCourses.firstOrNull { it.id == id } ?: courses.first()
+
+    fun readingOf(courseId: String, text: String): String? = LanguageCatalog.readingOf(courseId, text)
+
+    fun readingLabel(courseId: String): String? = LanguageCatalog.readingLabel(courseId)
 
     fun courseLessons(courseId: String): List<CourseLesson> {
         val grammar = dailyGrammarLesson(courseId)

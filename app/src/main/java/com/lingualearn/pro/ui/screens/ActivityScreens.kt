@@ -13,6 +13,7 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -32,6 +33,7 @@ import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Replay
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -68,6 +70,7 @@ import com.lingualearn.pro.ui.components.CardTitle
 import com.lingualearn.pro.ui.components.GlassCard
 import com.lingualearn.pro.ui.components.GlassTile
 import com.lingualearn.pro.ui.components.GlassTextField
+import com.lingualearn.pro.ui.components.PhraseWithReading
 import com.lingualearn.pro.ui.theme.TextMuted
 import com.lingualearn.pro.ui.theme.TextPrimary
 import com.lingualearn.pro.ui.theme.VistaAccent
@@ -117,18 +120,27 @@ fun VocabularyScreen(
 
     GlassCard(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            BodyText("Tap a card to flip between ${course.name} and English.")
+            BodyText(
+                if (pack.vocabulary.any { !it.reading.isNullOrBlank() }) {
+                    val label = SampleContent.readingLabel(course.id) ?: "reading"
+                    "Hover or tap a word for $label. Tap the emoji or label to flip."
+                } else {
+                    "Tap a card to flip between ${course.name} and English."
+                },
+            )
             if (saveMessage.isNotBlank()) BodyText(saveMessage, color = VistaGreen)
             pack.vocabulary.chunked(2).forEach { row ->
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     row.forEach { word ->
                         val isRevealed = word.term in revealed
                         val isSaved = word.term in savedTerms
+                        val hasReading = !word.reading.isNullOrBlank()
+                        fun flipCard() {
+                            revealed = if (isRevealed) revealed - word.term else revealed + word.term
+                        }
                         GlassTile(
                             modifier = Modifier.weight(1f),
-                            onClick = {
-                                revealed = if (isRevealed) revealed - word.term else revealed + word.term
-                            },
+                            onClick = if (hasReading) null else ({ flipCard() }),
                         ) {
                             Column(
                                 Modifier
@@ -137,18 +149,33 @@ fun VocabularyScreen(
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.spacedBy(4.dp),
                             ) {
-                                Text(word.emoji ?: "", style = MaterialTheme.typography.headlineSmall)
                                 Text(
-                                    text = if (isRevealed) word.meaning else word.term,
-                                    color = if (isRevealed) TextPrimary else course.accent,
-                                    fontWeight = FontWeight.Medium,
-                                    textAlign = TextAlign.Center,
-                                    style = MaterialTheme.typography.bodyMedium,
+                                    word.emoji ?: "",
+                                    style = MaterialTheme.typography.headlineSmall,
+                                    modifier = if (hasReading) Modifier.clickable { flipCard() } else Modifier,
                                 )
+                                if (isRevealed) {
+                                    Text(
+                                        text = word.meaning,
+                                        color = TextPrimary,
+                                        fontWeight = FontWeight.Medium,
+                                        textAlign = TextAlign.Center,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        modifier = if (hasReading) Modifier.clickable { flipCard() } else Modifier,
+                                    )
+                                } else {
+                                    PhraseWithReading(
+                                        phrase = word.term,
+                                        reading = word.reading,
+                                        phraseColor = course.accent,
+                                        textAlign = TextAlign.Center,
+                                    )
+                                }
                                 Text(
                                     text = if (isRevealed) "english" else pack.nativeLabel,
                                     color = TextMuted,
                                     style = MaterialTheme.typography.bodySmall,
+                                    modifier = if (hasReading) Modifier.clickable { flipCard() } else Modifier,
                                 )
                                 AeroButton(
                                     text = "Listen",
@@ -494,7 +521,12 @@ fun ListeningScreen(
             BodyText(pack.listeningDescription)
             when {
                 showTranscript && currentPhrase != null && !finished -> {
-                    BodyText(text = currentPhrase.phrase, color = TextPrimary)
+                    PhraseWithReading(
+                        phrase = currentPhrase.phrase,
+                        reading = currentPhrase.reading,
+                        phraseColor = TextPrimary,
+                        textAlign = TextAlign.Center,
+                    )
                     BodyText(text = currentPhrase.translation, color = TextMuted)
                 }
                 finished -> BodyText("Listening complete!", color = VistaGreen)
@@ -506,42 +538,64 @@ fun ListeningScreen(
                 text = if (phrases.isEmpty()) "0 phrases" else "${phraseIndex.coerceAtMost(phrases.size)} / ${phrases.size}",
                 color = TextMuted,
             )
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                AeroButton(
-                    text = when {
-                        playing -> "Pause Listening"
-                        finished -> "Replay"
-                        revealed && !finished -> "Next phrase"
-                        else -> "Start Listening"
-                    },
-                    color = course.accent,
-                    onClick = {
-                        when {
-                            playing -> {
-                                playing = false
-                                revealed = true
-                                tts?.stop()
-                            }
-                            finished -> {
-                                phraseIndex = 0
-                                revealed = false
-                                forceShowTranslation = false
-                                speakFrom(0)
-                            }
-                            revealed && !finished -> {
-                                val next = phraseIndex + 1
-                                if (next >= phrases.size) {
-                                    finished = true
-                                    phraseIndex = phrases.size
-                                    onComplete()
-                                } else {
-                                    speakFrom(next)
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    AeroButton(
+                        text = when {
+                            playing -> "Pause Listening"
+                            finished -> "Play again"
+                            revealed && !finished -> "Next phrase"
+                            else -> "Start Listening"
+                        },
+                        color = course.accent,
+                        onClick = {
+                            when {
+                                playing -> {
+                                    playing = false
+                                    revealed = true
+                                    tts?.stop()
                                 }
+                                finished -> {
+                                    phraseIndex = 0
+                                    revealed = false
+                                    forceShowTranslation = false
+                                    speakFrom(0)
+                                }
+                                revealed && !finished -> {
+                                    val next = phraseIndex + 1
+                                    if (next >= phrases.size) {
+                                        finished = true
+                                        phraseIndex = phrases.size
+                                        onComplete()
+                                    } else {
+                                        speakFrom(next)
+                                    }
+                                }
+                                else -> speakFrom(phraseIndex.coerceAtMost(phrases.lastIndex))
                             }
-                            else -> speakFrom(phraseIndex.coerceAtMost(phrases.lastIndex))
-                        }
-                    },
-                )
+                        },
+                    )
+                    if (phrases.isNotEmpty() && (playing || revealed || finished)) {
+                        AeroButton(
+                            text = "Replay",
+                            color = Color(0xFF526777),
+                            onClick = {
+                                val index = phraseIndex.coerceIn(0, phrases.lastIndex)
+                                speakFrom(index)
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    Icons.Filled.Replay,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp),
+                                )
+                            },
+                        )
+                    }
+                }
                 if (!finished && currentPhrase != null) {
                     AeroButton(
                         text = if (forceShowTranslation || revealed) "Hide translation" else "Show translation",

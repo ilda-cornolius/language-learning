@@ -22,6 +22,8 @@ object FlashcardRepository {
             if (existing != null) {
                 if (seed && cardsInDeckSync(context, existing.id).isEmpty()) {
                     seedDeck(context, languageId, existing.id)
+                } else if (seed) {
+                    fillMissingReadings(context, languageId, existing.id)
                 }
                 return@withContext existing
             }
@@ -179,9 +181,32 @@ object FlashcardRepository {
             tryAdd(word.word, word.meaning, word.exampleSentence)
         }
         SampleContent.dictionaryWords(languageId).forEach { word ->
-            tryAdd(word.term, word.meaning)
+            tryAdd(word.term, word.meaning, word.reading.orEmpty())
         }
+        fillMissingReadings(context, languageId, deckId)
         return added
+    }
+
+    private fun fillMissingReadings(context: Context, languageId: String, deckId: Long) {
+        val readings = SampleContent.dictionaryWords(languageId)
+            .mapNotNull { word ->
+                val reading = word.reading?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
+                word.term to reading
+            }
+            .toMap()
+        if (readings.isEmpty()) return
+        val db = database(context).writableDatabase
+        cardsInDeckSync(context, deckId).forEach { card ->
+            val reading = readings[card.front] ?: return@forEach
+            if (card.extra.isBlank()) {
+                db.update(
+                    "cards",
+                    ContentValues().apply { put("extra", reading) },
+                    "id = ?",
+                    arrayOf(card.id.toString()),
+                )
+            }
+        }
     }
 
     private fun addCardSync(

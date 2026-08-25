@@ -44,6 +44,7 @@ import com.lingualearn.pro.ui.components.BodyText
 import com.lingualearn.pro.ui.components.CardTitle
 import com.lingualearn.pro.ui.components.GlassCard
 import com.lingualearn.pro.ui.components.GlassTile
+import com.lingualearn.pro.ui.components.PhraseWithReading
 import com.lingualearn.pro.ui.theme.GlassTileStrong
 import com.lingualearn.pro.ui.theme.TextMuted
 import com.lingualearn.pro.ui.theme.TextPrimary
@@ -138,11 +139,11 @@ fun LessonScreen(onCheck: () -> Unit) {
                                         horizontalArrangement = Arrangement.SpaceBetween,
                                         verticalAlignment = Alignment.CenterVertically,
                                     ) {
-                                        Text(
-                                            text = word.term,
-                                            color = VistaAccent,
-                                            fontWeight = FontWeight.Medium,
-                                            style = MaterialTheme.typography.bodyMedium,
+                                        PhraseWithReading(
+                                            phrase = word.term,
+                                            reading = word.reading,
+                                            phraseColor = VistaAccent,
+                                            modifier = Modifier.weight(1f),
                                         )
                                         SpeakerButton()
                                     }
